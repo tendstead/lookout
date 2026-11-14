@@ -1,0 +1,14 @@
+# Local read-only source integration. Existing keys/known_hosts are mounted, never modified.
+services:
+  app:
+    user: "${LOOKOUT_UID:?Set the nonroot UID that can read the SSH key}:${LOOKOUT_GID:?Set its GID}"
+    environment:
+      CATALOGUE_CONFIG_FILE: /run/lookout/catalogue.json
+      MEDIA_SERVER_CONFIG_FILE: /run/secrets/media-server.json
+      TELEGRAM_CONFIG_FILE: /run/secrets/telegram.json
+    volumes:
+      - ${LOOKOUT_CONFIG_DIR:?Set the local runtime configuration directory}:/run/lookout:ro
+      - ${LOOKOUT_SSH_KEY_FILE:?Set the SSH private key path}:/run/secrets/ssh-key:ro
+      - ${LOOKOUT_KNOWN_HOSTS_FILE:?Set the known_hosts path}:/run/secrets/ssh-known-hosts:ro
+      - ${LOOKOUT_MEDIA_SERVER_FILE:-/dev/null}:/run/secrets/media-server.json:ro
+      - ${LOOKOUT_TELEGRAM_FILE:-/dev/null}:/run/secrets/telegram.json:ro

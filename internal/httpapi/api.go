@@ -19,7 +19,11 @@ func jsonResponse(w http.ResponseWriter, code int, value any) {
 func apiError(w http.ResponseWriter, code int, id, message string) {
 	jsonResponse(w, code, map[string]any{"error": map[string]string{"code": id, "message": message}})
 }
-func NewHandler(checkReady func(context.Context) error, assets fs.FS) http.Handler {
+func NewHandler(checkReady func(context.Context) error, assets fs.FS, options ...Option) http.Handler {
+	var opts apiOptions
+	for _, option := range options {
+		option(&opts)
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "same-origin")
@@ -36,6 +40,9 @@ func NewHandler(checkReady func(context.Context) error, assets fs.FS) http.Handl
 			serveStatic(w, r, assets)
 			return
 		}
+		if isAPI && opts.serveCatalogue(w, r) {
+			return
+		}
 		if isAPI && r.URL.Path != "/api/v1/status" {
 			apiError(w, 404, "not_found", "Not found")
 			return
@@ -46,7 +53,11 @@ func NewHandler(checkReady func(context.Context) error, assets fs.FS) http.Handl
 			return
 		}
 		if isAPI {
-			jsonResponse(w, 200, map[string]string{"service": "lookout", "stage": "foundation"})
+			stage := "foundation"
+			if opts.catalogue != nil {
+				stage = "catalogue"
+			}
+			jsonResponse(w, 200, map[string]string{"service": "lookout", "stage": stage})
 			return
 		}
 		status := "ok"

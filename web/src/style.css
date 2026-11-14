@@ -328,3 +328,259 @@ dd a {
     font-size: 11px;
   }
 }
+.library-toolbar {
+  margin: 10px 0 24px;
+}
+.library-totals {
+  font-size: 14px;
+  color: var(--ts-muted);
+  margin-bottom: 18px;
+}
+.library-totals strong {
+  color: var(--ts-text);
+  font-size: 24px;
+  font-weight: 650;
+}
+.library-search {
+  display: flex;
+  gap: 8px;
+  max-width: 600px;
+}
+.library-search input {
+  min-width: 0;
+  flex: 1;
+  padding: 12px 14px;
+  border: 1px solid var(--ts-border);
+  border-radius: 8px;
+  background: var(--ts-surface);
+  color: var(--ts-text);
+  font: inherit;
+  font-size: 14px;
+}
+.library-search button,
+.pagination button,
+.catalogue-button {
+  background: var(--ts-primary);
+  color: var(--ts-on-primary);
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 15px;
+  min-height: 42px;
+  font-size: 13px;
+  font-weight: 550;
+  cursor: pointer;
+}
+.category-filters {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.category-filters button {
+  border: 1px solid var(--ts-border);
+  border-radius: 7px;
+  padding: 8px 11px;
+  min-height: 38px;
+  background: var(--ts-surface);
+  color: var(--ts-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.category-filters .chosen {
+  background: var(--ts-selection);
+  color: var(--ts-on-selection);
+  border-color: var(--ts-selection);
+}
+.title-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.title-card {
+  min-width: 0;
+  display: block;
+  text-decoration: none;
+  color: var(--ts-text);
+  border: 1px solid var(--ts-border);
+  border-radius: 11px;
+  overflow: hidden;
+  background: var(--ts-surface);
+}
+.title-card:hover {
+  border-color: var(--ts-primary);
+}
+.title-art {
+  height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  background: var(--ts-surface-subtle);
+  color: var(--ts-primary);
+}
+.title-art span {
+  font-size: 10px;
+  color: var(--ts-muted);
+}
+.title-card-text {
+  padding: 12px;
+}
+.title-card h3 {
+  font-size: 14px;
+  line-height: 1.35;
+  font-weight: 600;
+  margin: 0 0 7px;
+  overflow-wrap: anywhere;
+}
+.title-card p {
+  color: var(--ts-muted);
+  font-size: 11px;
+  margin: 0 0 6px;
+}
+.title-card small {
+  font-size: 10px;
+  color: var(--ts-muted);
+}
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 24px 0;
+}
+.pagination span {
+  font-size: 12px;
+  color: var(--ts-muted);
+}
+.pagination button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.catalogue-message {
+  padding: 18px;
+  border: 1px solid var(--ts-border);
+  border-radius: 8px;
+  color: var(--ts-muted);
+  font-size: 14px;
+}
+.catalogue-message button {
+  color: var(--ts-primary);
+  background: transparent;
+  border: 0;
+}
+.catalogue-intro {
+  margin-bottom: 24px;
+}
+.catalogue-intro h2 {
+  font-size: 30px;
+  letter-spacing: -0.6px;
+  line-height: 1.25;
+  margin: 8px 0 12px;
+  overflow-wrap: anywhere;
+}
+.catalogue-intro p {
+  font-size: 14px;
+  color: var(--ts-muted);
+  line-height: 1.7;
+}
+.back-link {
+  display: inline-block;
+  color: var(--ts-primary);
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+.metadata-note {
+  font-size: 12px !important;
+}
+.observed-files {
+  list-style: none;
+  padding: 0;
+}
+.observed-files li {
+  display: block;
+  padding: 14px 0;
+}
+.file-name {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.file-note {
+  font-size: 11px;
+  margin-top: 6px;
+  color: var(--ts-muted);
+}
+.source-list {
+  display: grid;
+  gap: 16px;
+}
+.source-card {
+  border: 1px solid var(--ts-border);
+  border-radius: 12px;
+  padding: 22px;
+}
+.source-card h3 {
+  margin: 0;
+  font-size: 17px;
+}
+.source-card p {
+  font-size: 13px;
+  color: var(--ts-muted);
+}
+.source-path {
+  font-family: ui-monospace, monospace;
+  overflow-wrap: anywhere;
+  font-size: 12px !important;
+}
+.source-status {
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  background: var(--ts-selection);
+  color: var(--ts-on-selection);
+}
+.source-warning {
+  color: #a05d23 !important;
+}
+.source-date {
+  font-size: 11px !important;
+}
+.catalogue-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+@media (max-width: 1023px) {
+  .title-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767px) {
+  .title-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .title-art {
+    height: 130px;
+  }
+  .title-card-text {
+    padding: 10px;
+  }
+  .title-card h3 {
+    font-size: 13px;
+  }
+  .source-card {
+    padding: 16px;
+  }
+  .catalogue-intro h2 {
+    font-size: 26px;
+  }
+  .category-filters button {
+    padding: 8px;
+    font-size: 11px;
+  }
+  .library-search button {
+    padding: 10px 12px;
+  }
+}

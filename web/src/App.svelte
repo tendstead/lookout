@@ -5,6 +5,7 @@
   import Icon from './lib/Icon.svelte';
   import LibraryIcon from './lib/LibraryIcon.svelte';
   import SystemIcon from './lib/SystemIcon.svelte';
+  import Library from './lib/Library.svelte';
   let locale = $state<Locale>('en');
   let dark = $state(false);
   let pathname = $state(window.location.pathname);
@@ -15,9 +16,12 @@
   const t = (key: Key) => translate(locale, key);
   const destinations = $derived<Destination[]>([
     { id: 'overview', label: t('overview'), href: '/', icon: LibraryIcon },
+    { id: 'sources', label: t('sources'), href: '/sources', icon: SystemIcon },
     { id: 'system', label: t('system'), href: '/system', icon: SystemIcon },
   ]);
   const isSystem = $derived(pathname === '/system');
+  const isSources = $derived(pathname === '/sources');
+  const isDetail = $derived(pathname.startsWith('/titles/'));
   function save(key: string, value: string) {
     try {
       localStorage.setItem(key, value);
@@ -83,10 +87,16 @@
 <AppShell
   brand="Tendstead"
   appLabel="Lookout"
-  pageTitle={isSystem ? t('system') : t('overview')}
+  pageTitle={isSystem
+    ? t('system')
+    : isSources
+      ? t('sources')
+      : isDetail
+        ? t('library')
+        : t('overview')}
   {pathname}
   {destinations}
-  mobilePrimaryIds={['overview', 'system']}
+  mobilePrimaryIds={['overview', 'sources', 'system']}
   onNavigate={navigate}
   {locale}
 >
@@ -113,19 +123,16 @@
   {/snippet}
   <div class="page">
     {#if !isSystem}
-      <section class="intro">
-        <p class="eyebrow">{t('local')}</p>
-        <h2>{t('headline')}</h2>
-        <p class="lead">{t('intro')}</p>
-      </section>
-      <section class="empty-card" aria-labelledby="library-title">
-        <span class="empty-icon"><Icon kind="library" size={32} /></span><span
-          class="tag">{t('foundation')}</span
-        >
-        <h3 id="library-title">{t('empty')}</h3>
-        <p>{t('emptyText')}</p>
-        <div class="empty-note"><Icon kind="eye" size={17} />{t('footer')}</div>
-      </section>
+      {#if !isSources && !isDetail}<section class="intro">
+          <p class="eyebrow">{t('local')}</p>
+          <h2>{t('headline')}</h2>
+          <p class="lead">{t('intro')}</p>
+        </section>{/if}
+      {#key pathname}<Library
+          {locale}
+          mode={isSources ? 'sources' : isDetail ? 'detail' : 'overview'}
+          titleID={isDetail ? pathname.slice('/titles/'.length) : ''}
+        />{/key}
     {:else}
       <section class="intro">
         <p class="eyebrow">Lookout</p>
@@ -178,24 +185,7 @@
           : t('notChecked')}
       </p>
     </section>
-    {#if !isSystem}
-      <section class="roadmap">
-        <div class="section-heading">
-          <h3>{t('next')}</h3>
-          <span class="muted">{t('planned')}</span>
-        </div>
-        <ol>
-          {#each [{ title: 'scan', text: 'scanText' }, { title: 'catalogue', text: 'catalogueText' }, { title: 'follow', text: 'followText' }] as item, i}<li
-            >
-              <span class="step">0{i + 1}</span>
-              <div>
-                <h4>{t(item.title as Key)}</h4>
-                <p>{t(item.text as Key)}</p>
-              </div>
-            </li>{/each}
-        </ol>
-      </section>
-    {:else}
+    {#if isSystem}
       <section class="details-card">
         <h3>{t('architecture')}</h3>
         <p>{t('architectureText')}</p>

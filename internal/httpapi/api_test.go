@@ -27,7 +27,7 @@ func TestHealth(t *testing.T) {
 					return errors.New("private database info")
 				}
 				return nil
-			})
+			}, nil)
 			w := httptest.NewRecorder()
 			h.ServeHTTP(w, httptest.NewRequest(tc.method, tc.path, nil))
 			if w.Code != tc.code {
@@ -43,7 +43,7 @@ func TestHealth(t *testing.T) {
 	}
 }
 func TestCancelledReadiness(t *testing.T) {
-	h := NewHandler(func(ctx context.Context) error { return ctx.Err() })
+	h := NewHandler(func(ctx context.Context) error { return ctx.Err() }, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	w := httptest.NewRecorder()

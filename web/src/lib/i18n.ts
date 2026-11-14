@@ -1,5 +1,48 @@
 export const translations = {
   en: {
+    connections: 'Connections',
+    metadataConnections: 'Metadata connections',
+    connectionIntro:
+      'Reuse metadata from your Jellyfin or Plex library. Media files stay in place.',
+    serverType: 'Server type',
+    serverURL: 'Media server URL',
+    accessToken: 'Access token',
+    saveConnection: 'Save connection',
+    verifyConnection: 'Verify connection',
+    importMetadata: 'Import metadata',
+    refreshOfficial: 'Refresh TVmaze metadata',
+    serverPrefix: 'Server path prefix',
+    localSource: 'Local source',
+    addMapping: 'Add path mapping',
+    removeMapping: 'Remove mapping',
+    tokenNote: 'The access token is stored encrypted and is never shown again.',
+    mappingNote:
+      'Map the path used by your media server to the matching Lookout source.',
+    verified: 'Verified',
+    notVerified: 'Not verified',
+    savedConnection: 'Connection saved',
+    connectionVerified: 'Connection verified',
+    metadataQueued: 'Metadata refresh queued',
+    connectionError:
+      'The connection could not be saved or verified. Check the settings.',
+    metadataRunning: 'Refreshing metadata…',
+    matched: 'matched',
+    needsReview: 'need review',
+    notMatched: 'not matched',
+    connectionsDisabled:
+      'Connection storage is not configured for this installation.',
+    officialPrivacy:
+      'Official lookups send series names and provider IDs to TVmaze.',
+    noConnections: 'No media servers connected',
+    findMetadata: 'Find metadata',
+    searchMetadata: 'Search metadata',
+    selectMatch: 'Use this match',
+    matchHint:
+      'Choose the exact series. Provider episode numbering can differ.',
+    metadataSearchError: 'Metadata search failed or is not enabled.',
+    providerAttribution: 'Metadata reference',
+    collection: 'Collection',
+
     library: 'Library',
     sources: 'Sources',
     searchLibrary: 'Search library',
@@ -92,6 +135,51 @@ export const translations = {
     api: 'Read-only status API',
   },
   de: {
+    connections: 'Verbindungen',
+    metadataConnections: 'Metadaten-Verbindungen',
+    connectionIntro:
+      'Metadaten aus deiner Jellyfin- oder Plex-Mediathek übernehmen. Die Mediendateien bleiben an ihrem Platz.',
+    serverType: 'Servertyp',
+    serverURL: 'Medienserver-URL',
+    accessToken: 'Zugriffstoken',
+    saveConnection: 'Verbindung speichern',
+    verifyConnection: 'Verbindung prüfen',
+    importMetadata: 'Metadaten übernehmen',
+    refreshOfficial: 'TVmaze-Metadaten aktualisieren',
+    serverPrefix: 'Pfadpräfix auf dem Medienserver',
+    localSource: 'Lokale Quelle',
+    addMapping: 'Pfadzuordnung hinzufügen',
+    removeMapping: 'Zuordnung entfernen',
+    tokenNote:
+      'Das Zugriffstoken wird verschlüsselt gespeichert und nicht erneut angezeigt.',
+    mappingNote:
+      'Ordne den Pfad deines Medienservers der passenden Lookout-Quelle zu.',
+    verified: 'Geprüft',
+    notVerified: 'Nicht geprüft',
+    savedConnection: 'Verbindung gespeichert',
+    connectionVerified: 'Verbindung geprüft',
+    metadataQueued: 'Metadaten-Aktualisierung vorgemerkt',
+    connectionError:
+      'Die Verbindung konnte nicht gespeichert oder geprüft werden. Bitte Einstellungen prüfen.',
+    metadataRunning: 'Metadaten werden aktualisiert…',
+    matched: 'zugeordnet',
+    needsReview: 'zu prüfen',
+    notMatched: 'nicht zugeordnet',
+    connectionsDisabled:
+      'Der Verbindungsspeicher ist für diese Installation nicht eingerichtet.',
+    officialPrivacy:
+      'Offizielle Abfragen senden Seriennamen und Anbieter-IDs an TVmaze.',
+    noConnections: 'Keine Medienserver verbunden',
+    findMetadata: 'Metadaten suchen',
+    searchMetadata: 'Metadaten durchsuchen',
+    selectMatch: 'Diesen Treffer verwenden',
+    matchHint:
+      'Wähle die richtige Serie. Die Folgennummerierung kann je nach Anbieter abweichen.',
+    metadataSearchError:
+      'Die Metadatensuche ist fehlgeschlagen oder nicht aktiviert.',
+    providerAttribution: 'Metadatenreferenz',
+    collection: 'Sammlung',
+
     library: 'Mediathek',
     sources: 'Quellen',
     searchLibrary: 'Mediathek durchsuchen',

@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { translate, type Locale, type Key } from './i18n';
   import Icon from './Icon.svelte';
+  import MetadataReview from './MetadataReview.svelte';
   type Title = {
     id: string;
     name: string;
@@ -13,6 +14,8 @@
     match_status: string;
     file_count: number;
     source_label: string;
+    has_artwork?: boolean;
+    metadata_url?: string;
   };
   type FileItem = {
     id: number;
@@ -216,6 +219,15 @@
       </p>
     </section>
     <section>
+      {#if detail.metadata_url}<p class="metadata-note">
+          <a href={detail.metadata_url} target="_blank" rel="noreferrer"
+            >{t('providerAttribution')} ↗</a
+          >
+        </p>{/if}{#if detail.category === 'series' || detail.category === 'anime_series'}<MetadataReview
+          {locale}
+          titleID={detail.id}
+          name={detail.name}
+        />{/if}
       <h3>{t('observedFiles')}</h3>
       <ul class="observed-files">
         {#each detail.files as file}<li>
@@ -272,6 +284,13 @@
   <div class="title-grid">
     {#each titles as title}<a class="title-card" href={'/titles/' + title.id}
         ><div class="title-art" aria-hidden="true">
+          {#if title.has_artwork}<img
+              src={'/api/v1/titles/' + title.id + '/artwork'}
+              alt=""
+              loading="lazy"
+              onerror={(e) =>
+                ((e.currentTarget as HTMLImageElement).style.display = 'none')}
+            />{/if}
           <Icon
             kind={title.category.includes('series') ? 'system' : 'library'}
             size={34}

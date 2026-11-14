@@ -6,6 +6,7 @@
   import LibraryIcon from './lib/LibraryIcon.svelte';
   import SystemIcon from './lib/SystemIcon.svelte';
   import Library from './lib/Library.svelte';
+  import Connections from './lib/Connections.svelte';
   let locale = $state<Locale>('en');
   let dark = $state(false);
   let pathname = $state(window.location.pathname);
@@ -17,10 +18,17 @@
   const destinations = $derived<Destination[]>([
     { id: 'overview', label: t('overview'), href: '/', icon: LibraryIcon },
     { id: 'sources', label: t('sources'), href: '/sources', icon: SystemIcon },
+    {
+      id: 'connections',
+      label: t('connections'),
+      href: '/connections',
+      icon: SystemIcon,
+    },
     { id: 'system', label: t('system'), href: '/system', icon: SystemIcon },
   ]);
   const isSystem = $derived(pathname === '/system');
   const isSources = $derived(pathname === '/sources');
+  const isConnections = $derived(pathname === '/connections');
   const isDetail = $derived(pathname.startsWith('/titles/'));
   function save(key: string, value: string) {
     try {
@@ -40,7 +48,7 @@
   $effect(() => {
     document.documentElement.lang = locale;
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-    document.title = `${isSystem ? t('system') : t('overview')} · Lookout`;
+    document.title = `${isSystem ? t('system') : isConnections ? t('connections') : t('overview')} · Lookout`;
   });
   async function check() {
     checking = true;
@@ -87,13 +95,15 @@
 <AppShell
   brand="Tendstead"
   appLabel="Lookout"
-  pageTitle={isSystem
-    ? t('system')
-    : isSources
-      ? t('sources')
-      : isDetail
-        ? t('library')
-        : t('overview')}
+  pageTitle={isConnections
+    ? t('connections')
+    : isSystem
+      ? t('system')
+      : isSources
+        ? t('sources')
+        : isDetail
+          ? t('library')
+          : t('overview')}
   {pathname}
   {destinations}
   mobilePrimaryIds={['overview', 'sources', 'system']}
@@ -123,16 +133,16 @@
   {/snippet}
   <div class="page">
     {#if !isSystem}
-      {#if !isSources && !isDetail}<section class="intro">
+      {#if !isSources && !isDetail && !isConnections}<section class="intro">
           <p class="eyebrow">{t('local')}</p>
           <h2>{t('headline')}</h2>
           <p class="lead">{t('intro')}</p>
         </section>{/if}
-      {#key pathname}<Library
-          {locale}
-          mode={isSources ? 'sources' : isDetail ? 'detail' : 'overview'}
-          titleID={isDetail ? pathname.slice('/titles/'.length) : ''}
-        />{/key}
+      {#if isConnections}<Connections {locale} />{:else}{#key pathname}<Library
+            {locale}
+            mode={isSources ? 'sources' : isDetail ? 'detail' : 'overview'}
+            titleID={isDetail ? pathname.slice('/titles/'.length) : ''}
+          />{/key}{/if}
     {:else}
       <section class="intro">
         <p class="eyebrow">Lookout</p>

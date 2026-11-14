@@ -1,0 +1,20 @@
+services:
+  go:
+    image: golang:1.27.4
+    cpus: 2
+    mem_limit: 2g
+    memswap_limit: 2g
+    working_dir: /app
+    volumes: [".:/app", "go-mod:/go/pkg/mod", "go-build:/root/.cache/go-build"]
+  web:
+    image: node:26.13.1-alpine
+    cpus: 2
+    mem_limit: 1g
+    memswap_limit: 1g
+    working_dir: /app/web
+    volumes: [".:/app", "node-mod:/app/web/node_modules", "npm-cache:/root/.npm"]
+volumes:
+  go-mod:
+  go-build:
+  node-mod:
+  npm-cache:

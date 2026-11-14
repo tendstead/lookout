@@ -1,0 +1,35 @@
+name: lookout
+services:
+  app:
+    image: lookout:local
+    build: .
+    cpus: 1
+    mem_limit: 128m
+    memswap_limit: 128m
+    ports: ["${LISTEN_ADDR:-127.0.0.1}:${PORT:-8083}:8080"]
+    environment:
+      LISTEN_ADDR: :8080
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL for a dedicated Lookout database}
+      DB_PASSWORD_FILE: /run/secrets/database-password
+      GOMEMLIMIT: 96MiB
+      GOMAXPROCS: "1"
+    secrets: [database-password]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, /app/lookout, -healthcheck]
+      interval: 15s
+      timeout: 4s
+      retries: 3
+      start_period: 20s
+    networks: [database]
+secrets:
+  database-password:
+    file: ${DB_PASSWORD_FILE:?Set DB_PASSWORD_FILE to a database password file}
+networks:
+  database:
+    external: true
+    name: ${POSTGRES_NETWORK:-postgres_net}

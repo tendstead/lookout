@@ -27,4 +27,15 @@ up:
 	docker compose up -d --build --wait
 down:
 	docker compose down
-check: fmt-check vet test service-test web-check e2e build
+check: fmt-check vet test service-test web-check e2e vuln workflow-lint
+e2e: build
+	sh scripts/test-browser.sh
+
+vuln:
+	$(TOOLS) run --rm go go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+	$(TOOLS) run --rm web npm audit --audit-level=high
+workflow-lint:
+	docker run --rm --cpus 1 --memory 128m --memory-swap 128m -v "$(CURDIR):/repo:ro" -w /repo rhysd/actionlint:1.7.12 -color
+
+screenshots:
+	docker compose -p lookout-browser -f compose.browser.yaml run --rm browser

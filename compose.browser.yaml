@@ -1,0 +1,15 @@
+services:
+  browser:
+    image: mcr.microsoft.com/playwright:v1.65.1-noble
+    cpus: 2
+    mem_limit: 2g
+    memswap_limit: 2g
+    working_dir: /app/web
+    volumes: [".:/app", "lookout-tools_node-mod:/app/web/node_modules"]
+    environment:
+      BASE_URL: ${BASE_URL:-http://host.docker.internal:8083}
+      UPDATE_SCREENSHOTS: "1"
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    command: [npm, run, test:e2e]
+volumes:
+  lookout-tools_node-mod: {external: true}

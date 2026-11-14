@@ -4,7 +4,9 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"io/fs"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -14,15 +16,37 @@ func jsonResponse(w http.ResponseWriter, code int, value any) {
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(value)
 }
-func NewHandler(checkReady func(context.Context) error) http.Handler {
+func apiError(w http.ResponseWriter, code int, id, message string) {
+	jsonResponse(w, code, map[string]any{"error": map[string]string{"code": id, "message": message}})
+}
+func NewHandler(checkReady func(context.Context) error, assets fs.FS) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/healthz" && r.URL.Path != "/readyz" {
-			jsonResponse(w, 404, map[string]any{"error": map[string]string{"code": "not_found", "message": "Not found"}})
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Referrer-Policy", "same-origin")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'")
+		for _, part := range strings.Split(r.URL.Path, "/") {
+			if part == ".." || part == "." {
+				apiError(w, 400, "invalid_path", "Invalid path")
+				return
+			}
+		}
+		isHealth := r.URL.Path == "/healthz" || r.URL.Path == "/readyz"
+		isAPI := r.URL.Path == "/api" || strings.HasPrefix(r.URL.Path, "/api/")
+		if !isHealth && !isAPI {
+			serveStatic(w, r, assets)
+			return
+		}
+		if isAPI && r.URL.Path != "/api/v1/status" {
+			apiError(w, 404, "not_found", "Not found")
 			return
 		}
 		if r.Method != "GET" && r.Method != "HEAD" {
 			w.Header().Set("Allow", "GET, HEAD")
-			jsonResponse(w, 405, map[string]string{"error": "Method not allowed"})
+			apiError(w, 405, "method_not_allowed", "Method not allowed")
+			return
+		}
+		if isAPI {
+			jsonResponse(w, 200, map[string]string{"service": "lookout", "stage": "foundation"})
 			return
 		}
 		status := "ok"

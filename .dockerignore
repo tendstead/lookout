@@ -1,0 +1,9 @@
+.git
+.env
+.implementation
+.superpowers
+web/node_modules
+web/test-results
+web/playwright-report
+docs/screenshots
+cmd/server/static

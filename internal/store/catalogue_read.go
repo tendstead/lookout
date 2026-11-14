@@ -14,6 +14,8 @@ type TitleQuery struct {
 	Limit, Offset    int
 }
 type Title struct {
+	HasArtwork  bool              `json:"has_artwork"`
+	MetadataURL string            `json:"metadata_url,omitempty"`
 	ID          string            `json:"id"`
 	Name        string            `json:"name"`
 	Category    string            `json:"category"`
@@ -62,7 +64,7 @@ func (s *Store) ListTitles(ctx context.Context, q TitleQuery) (TitlePage, error)
 	if e := s.pool.QueryRow(ctx, "SELECT count(*) FROM library_titles t"+filter, q.Search, q.Category).Scan(&page.Total); e != nil {
 		return page, e
 	}
-	rows, e := s.pool.Query(ctx, `SELECT t.id::text,t.name,t.category,t.year,t.overview,t.provider_ids,t.provenance,t.match_status,(SELECT count(*) FROM library_files f WHERE f.title_id=t.id),s.label FROM library_titles t JOIN library_sources s ON s.id=t.source_id`+filter+` ORDER BY lower(t.name),t.id LIMIT $3 OFFSET $4`, q.Search, q.Category, q.Limit, q.Offset)
+	rows, e := s.pool.Query(ctx, `SELECT t.id::text,t.name,t.category,t.year,t.overview,t.provider_ids,t.provenance,t.match_status,(SELECT count(*) FROM library_files f WHERE f.title_id=t.id),s.label,(t.artwork_path<>'' OR t.artwork_url<>''),t.metadata_url FROM library_titles t JOIN library_sources s ON s.id=t.source_id`+filter+` ORDER BY lower(t.name),t.id LIMIT $3 OFFSET $4`, q.Search, q.Category, q.Limit, q.Offset)
 	if e != nil {
 		return page, e
 	}
@@ -79,7 +81,7 @@ func (s *Store) ListTitles(ctx context.Context, q TitleQuery) (TitlePage, error)
 func readTitle(row pgx.Row) (Title, error) {
 	var v Title
 	var ids []byte
-	e := row.Scan(&v.ID, &v.Name, &v.Category, &v.Year, &v.Overview, &ids, &v.Provenance, &v.MatchStatus, &v.FileCount, &v.SourceLabel)
+	e := row.Scan(&v.ID, &v.Name, &v.Category, &v.Year, &v.Overview, &ids, &v.Provenance, &v.MatchStatus, &v.FileCount, &v.SourceLabel, &v.HasArtwork, &v.MetadataURL)
 	if e == nil {
 		e = json.Unmarshal(ids, &v.ProviderIDs)
 	}
@@ -90,7 +92,7 @@ var ErrNotFound = errors.New("not found")
 
 func (s *Store) GetTitle(ctx context.Context, id string) (TitleDetail, error) {
 	var out TitleDetail
-	v, e := readTitle(s.pool.QueryRow(ctx, `SELECT t.id::text,t.name,t.category,t.year,t.overview,t.provider_ids,t.provenance,t.match_status,(SELECT count(*) FROM library_files f WHERE f.title_id=t.id),s.label FROM library_titles t JOIN library_sources s ON s.id=t.source_id WHERE t.id::text=$1`, id))
+	v, e := readTitle(s.pool.QueryRow(ctx, `SELECT t.id::text,t.name,t.category,t.year,t.overview,t.provider_ids,t.provenance,t.match_status,(SELECT count(*) FROM library_files f WHERE f.title_id=t.id),s.label,(t.artwork_path<>'' OR t.artwork_url<>''),t.metadata_url FROM library_titles t JOIN library_sources s ON s.id=t.source_id WHERE t.id::text=$1`, id))
 	if errors.Is(e, pgx.ErrNoRows) {
 		return out, ErrNotFound
 	}

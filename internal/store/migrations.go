@@ -8,3 +8,6 @@ var initial string
 
 //go:embed migrations/002_catalogue.sql
 var catalogue string
+
+//go:embed migrations/003_metadata.sql
+var metadataSchema string

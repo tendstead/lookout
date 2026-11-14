@@ -115,3 +115,25 @@ func TestExplicitPathMapping(t *testing.T) {
 		}
 	}
 }
+func TestArtworkUsesHeadersAndRejectsOutsidePaths(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.RawQuery, "secret-test") {
+			t.Fatal("token leaked in image URL")
+		}
+		if !strings.Contains(r.Header.Get("Authorization"), "secret-test") {
+			t.Fatal("missing image authorization")
+		}
+		w.Header().Set("Content-Type", "image/png")
+		w.Write([]byte{137, 80, 78, 71, 13, 10, 26, 10})
+	}))
+	defer server.Close()
+	p := MediaServer{Kind: "jellyfin", BaseURL: server.URL, Token: "secret-test", HTTP: server.Client()}
+	if _, _, e := p.Image(context.Background(), "/Items/id/Images/Primary"); e != nil {
+		t.Fatal(e)
+	}
+	for _, v := range []string{"https://outside.invalid/steal", "//outside.invalid/steal", "/Items/../Secrets"} {
+		if _, _, e := p.Image(context.Background(), v); e == nil {
+			t.Fatal("unsafe artwork accepted")
+		}
+	}
+}

@@ -6,6 +6,7 @@ PostgreSQL server. This is a small foundation observation, not a catalogue bench
 | Observation | Value |
 | --- | --- |
 | Container working-set memory after desktop/mobile browser checks | 4.129 MiB |
+| Process RSS / high-water RSS after browser checks | 13,324 KiB / 13,324 KiB |
 | Container CPU at that idle sample | 0.00% |
 | Current Lookout database connections | 1 (pool maximum 4) |
 | App memory / CPU limits | 128 MiB / 1 CPU |
@@ -16,7 +17,9 @@ PostgreSQL server. This is a small foundation observation, not a catalogue bench
 Commands: `docker stats --no-stream lookout-app-1`, `docker inspect lookout-app-1`,
 and a count of `pg_stat_activity` rows filtered to database `lookout`. The running
 container is nonroot, read-only, drops all capabilities and has the configured
-memory/CPU limits. Container working-set usage is distinct from process RSS.
+memory/CPU limits. Container working-set usage is distinct from process RSS. Process counters were
+read from the running Lookout PID’s `/proc/<pid>/status`; the observed high-water
+RSS includes startup and browser checks but is not a sampled startup timeline.
 
 The first startup revealed Compose secret permission behavior; after verifying
 nonroot readability and correcting the private host-directory/file modes, the

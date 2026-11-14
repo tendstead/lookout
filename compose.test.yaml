@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:18.7-alpine
+    cpus: 1
+    mem_limit: 256m
+    memswap_limit: 256m
+    environment:
+      POSTGRES_USER: lookout_test
+      POSTGRES_PASSWORD: disposable-test-only
+      POSTGRES_DB: lookout_test
+    tmpfs: [/var/lib/postgresql]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U lookout_test]
+      interval: 1s
+      timeout: 2s
+      retries: 30
+  test:
+    image: golang:1.27.4
+    cpus: 2
+    mem_limit: 2g
+    memswap_limit: 2g
+    working_dir: /app
+    volumes: [".:/app", "lookout-tools_go-mod:/go/pkg/mod", "lookout-tools_go-build:/root/.cache/go-build"]
+    environment:
+      TEST_DATABASE_URL: postgres://lookout_test:disposable-test-only@db/lookout_test?sslmode=disable
+    depends_on:
+      db: {condition: service_healthy}
+    command: [go, test, -race, -count=1, ./internal/store]
+volumes:
+  lookout-tools_go-mod: {external: true}
+  lookout-tools_go-build: {external: true}

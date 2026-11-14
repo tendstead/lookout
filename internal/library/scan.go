@@ -89,7 +89,7 @@ func Scan(ctx context.Context, r Reader, root Root, emit func(FileObservation) e
 			}
 			byName[n] = entry
 		}
-		if depth == 1 {
+		if depth == 1 || root.Category == "movie" || root.Category == "anime_movie" {
 			for _, name := range []string{"tvshow.nfo", "movie.nfo"} {
 				if v, ok := byName[name]; ok && v.Mode().IsRegular() {
 					m, e := readNFO(path.Join(dir, name), v.Size())
@@ -100,6 +100,12 @@ func Scan(ctx context.Context, r Reader, root Root, emit func(FileObservation) e
 						stats.Sidecars++
 					}
 				}
+			}
+		}
+		directMedia := 0
+		for _, v := range entries {
+			if v.Mode().IsRegular() && IsMedia(v.Name()) {
+				directMedia++
 			}
 		}
 		for _, entry := range entries {
@@ -136,6 +142,18 @@ func Scan(ctx context.Context, r Reader, root Root, emit func(FileObservation) e
 			if depth == 0 {
 				childGroup = strings.TrimSuffix(n, path.Ext(n))
 				childSeed = ParseTitle(childGroup)
+			}
+			if root.Category == "movie" || root.Category == "anime_movie" {
+				if directMedia == 1 && depth > 0 {
+					childGroup = strings.TrimPrefix(dir, root.Path+"/")
+					childSeed = ParseTitle(path.Base(dir))
+					if seed.Provenance == "nfo" {
+						childSeed = mergeMetadata(childSeed, seed)
+					}
+				} else {
+					childGroup = strings.TrimPrefix(p, root.Path+"/")
+					childSeed = ParseMovieFilename(n)
+				}
 			}
 			season, eps := ParseNumbering(n, path.Base(dir))
 			numbering := "unknown"

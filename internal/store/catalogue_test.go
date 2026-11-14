@@ -107,3 +107,31 @@ func TestCataloguePaginationAndSearch(t *testing.T) {
 		t.Fatalf("%#v %v", page, e)
 	}
 }
+func TestGroupingCorrectionRetainsFiles(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	if e := s.Migrate(ctx); e != nil {
+		t.Fatal(e)
+	}
+	root := library.Root{ID: "grouping", Label: "Films", Path: "/films", Category: "movie"}
+	if e := s.EnsureSource(ctx, root); e != nil {
+		t.Fatal(e)
+	}
+	for _, group := range []string{"Collection", "Collection/Film"} {
+		scan, e := s.StartScan(ctx, root.ID)
+		if e != nil {
+			t.Fatal(e)
+		}
+		f := library.FileObservation{SourceID: root.ID, RelativePath: "Collection/Film/file.mkv", Group: group, Category: "movie", Size: 100, Modified: time.Now(), Title: library.ParseTitle(group)}
+		if e = s.Observe(ctx, scan, f); e != nil {
+			t.Fatal(e)
+		}
+		if e = s.FinishScan(ctx, scan, root.ID, library.ScanStats{Media: 1}, nil); e != nil {
+			t.Fatal(e)
+		}
+	}
+	page, e := s.ListTitles(ctx, TitleQuery{})
+	if e != nil || page.Total != 1 || page.Items[0].FileCount != 1 {
+		t.Fatalf("empty generated collection title retained: %#v %v", page, e)
+	}
+}

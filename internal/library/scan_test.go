@@ -74,3 +74,25 @@ func TestPartialScanReturnsFailure(t *testing.T) {
 		t.Fatal("partial scan reported complete")
 	}
 }
+func TestFilmCollectionsProduceIndividualTitles(t *testing.T) {
+	f := &fakeReader{dirs: map[string][]fs.FileInfo{"/media": {entry{"Collection", fs.ModeDir}}, "/media/Collection": {entry{"Film A (2000)", fs.ModeDir}, entry{"Film B (2001)", fs.ModeDir}, entry{"Flat.Film.2020.1080p.mkv", 0}, entry{"Other.Film.2021.1080p.mkv", 0}}, "/media/Collection/Film A (2000)": {entry{"release.mkv", 0}}, "/media/Collection/Film B (2001)": {entry{"release.mkv", 0}}}}
+	var files []FileObservation
+	_, err := Scan(context.Background(), f, Root{ID: "a", Path: "/media", Category: "movie"}, func(v FileObservation) error { files = append(files, v); return nil })
+	if err != nil || len(files) != 4 {
+		t.Fatal(err, len(files))
+	}
+	names := map[string]bool{}
+	groups := map[string]bool{}
+	for _, v := range files {
+		names[v.Title.Title] = true
+		groups[v.Group] = true
+	}
+	for _, name := range []string{"Film A", "Film B", "Flat Film", "Other Film"} {
+		if !names[name] {
+			t.Fatalf("missing film title %s: %#v", name, names)
+		}
+	}
+	if len(groups) != 4 {
+		t.Fatal("collection collapsed individual films")
+	}
+}

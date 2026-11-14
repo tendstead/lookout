@@ -40,6 +40,9 @@ func NewHandler(checkReady func(context.Context) error, assets fs.FS, options ..
 			serveStatic(w, r, assets)
 			return
 		}
+		if isAPI && opts.serveMetadata(w, r) {
+			return
+		}
 		if isAPI && opts.serveCatalogue(w, r) {
 			return
 		}

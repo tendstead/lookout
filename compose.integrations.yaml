@@ -4,6 +4,8 @@ services:
     user: "${LOOKOUT_UID:?Set the nonroot UID that can read the SSH key}:${LOOKOUT_GID:?Set its GID}"
     environment:
       CATALOGUE_CONFIG_FILE: /run/lookout/catalogue.json
+      CONNECTION_KEY_FILE: /run/lookout/connection-key
+      ALLOW_PUBLIC_METADATA: ${ALLOW_PUBLIC_METADATA:-false}
       MEDIA_SERVER_CONFIG_FILE: /run/secrets/media-server.json
       TELEGRAM_CONFIG_FILE: /run/secrets/telegram.json
     volumes:

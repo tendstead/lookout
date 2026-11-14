@@ -5,6 +5,7 @@ import (
 	"context"
 	"github.com/tendstead/lookout/internal/catalogue"
 	"github.com/tendstead/lookout/internal/config"
+	"github.com/tendstead/lookout/internal/enrichment"
 	"github.com/tendstead/lookout/internal/httpapi"
 	"github.com/tendstead/lookout/internal/store"
 	"log"
@@ -61,7 +62,14 @@ func run() error {
 		return err
 	}
 	go libraryService.Run(ctx)
-	srv := &http.Server{Addr: cfg.ListenAddr, Handler: httpapi.NewHandler(s.Ping, frontendAssets(), httpapi.WithCatalogue(s, libraryService)), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
+	var connectionKey []byte
+	if file := os.Getenv("CONNECTION_KEY_FILE"); file != "" {
+		connectionKey, _ = os.ReadFile(file)
+	}
+	metadataService := enrichment.New(s, connectionKey)
+	metadataService.AllowPublic = os.Getenv("ALLOW_PUBLIC_METADATA") == "true"
+	go metadataService.Run(ctx)
+	srv := &http.Server{Addr: cfg.ListenAddr, Handler: httpapi.NewHandler(s.Ping, frontendAssets(), httpapi.WithCatalogue(s, libraryService), httpapi.WithMetadata(metadataService)), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
 	done := make(chan error, 1)
 	go func() { done <- srv.ListenAndServe() }()
 	log.Print("Lookout listening on ", cfg.ListenAddr)

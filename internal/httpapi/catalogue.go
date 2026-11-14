@@ -18,6 +18,7 @@ type LibraryStore interface {
 }
 type ScanRequester interface{ RequestScan(string) error }
 type apiOptions struct {
+	metadata  MetadataService
 	catalogue LibraryStore
 	scans     ScanRequester
 }

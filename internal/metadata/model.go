@@ -3,9 +3,12 @@ package metadata
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"path"
@@ -70,11 +73,19 @@ func readJSON(ctx context.Context, client *http.Client, address string, headers 
 	}
 	response, e := client.Do(r)
 	if e != nil {
+		var dns *net.DNSError
+		var cert *tls.CertificateVerificationError
+		if errors.As(e, &dns) {
+			return errors.New("provider DNS resolution failed")
+		}
+		if errors.As(e, &cert) {
+			return errors.New("provider TLS certificate verification failed")
+		}
 		return errors.New("provider connection failed")
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return errors.New("provider request rejected")
+		return fmt.Errorf("provider request rejected (HTTP %d)", response.StatusCode)
 	}
 	b, e := io.ReadAll(io.LimitReader(response.Body, 8*1024*1024+1))
 	if e != nil || len(b) > 8*1024*1024 {

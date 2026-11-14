@@ -72,3 +72,18 @@ func IsMedia(name string) bool {
 	}
 	return false
 }
+
+var movieYearAnywhere = regexp.MustCompile(`\b(?:19|20)\d{2}\b`)
+
+func ParseMovieFilename(name string) Metadata {
+	name = strings.TrimSuffix(name, path.Ext(name))
+	name = strings.ReplaceAll(strings.ReplaceAll(name, ".", " "), "_", " ")
+	for _, span := range movieYearAnywhere.FindAllStringIndex(name, -1) {
+		if span[0] > 0 {
+			m := ParseTitle(strings.TrimSpace(name[:span[0]]))
+			m.Year, _ = strconv.Atoi(name[span[0]:span[1]])
+			return m
+		}
+	}
+	return ParseTitle(name)
+}

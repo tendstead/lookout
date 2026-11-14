@@ -123,6 +123,12 @@ func (s *Store) FinishScan(ctx context.Context, scan, source string, stats libra
 			return e
 		}
 	}
+	if scanErr == nil && status == "ready" {
+		_, e = tx.Exec(ctx, `DELETE FROM library_titles t WHERE t.source_id=$1 AND t.provenance='filename' AND NOT EXISTS(SELECT 1 FROM library_files f WHERE f.title_id=t.id)`, source)
+		if e != nil {
+			return e
+		}
+	}
 	_, e = tx.Exec(ctx, "UPDATE library_scans SET status=$2,finished_at=now(),stats=$3,error=$4 WHERE id=$1", scan, scanStatus, raw, message)
 	if e != nil {
 		return e

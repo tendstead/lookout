@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"github.com/tendstead/lookout/internal/catalogue"
 	"github.com/tendstead/lookout/internal/config"
 	"github.com/tendstead/lookout/internal/httpapi"
 	"github.com/tendstead/lookout/internal/store"
@@ -51,7 +52,16 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	srv := &http.Server{Addr: cfg.ListenAddr, Handler: httpapi.NewHandler(s.Ping, frontendAssets()), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
+	catalogueConfig, err := catalogue.LoadConfig(os.Getenv("CATALOGUE_CONFIG_FILE"))
+	if err != nil {
+		return err
+	}
+	libraryService, err := catalogue.New(ctx, s, catalogueConfig)
+	if err != nil {
+		return err
+	}
+	go libraryService.Run(ctx)
+	srv := &http.Server{Addr: cfg.ListenAddr, Handler: httpapi.NewHandler(s.Ping, frontendAssets(), httpapi.WithCatalogue(s, libraryService)), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
 	done := make(chan error, 1)
 	go func() { done <- srv.ListenAndServe() }()
 	log.Print("Lookout listening on ", cfg.ListenAddr)

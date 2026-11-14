@@ -6,7 +6,7 @@
   "license": "Elastic-2.0",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
+    "build": "vite build && node scripts/keep-embed-directory.mjs",
     "check": "svelte-check --tsconfig ./tsconfig.json && tsc --noEmit",
     "test": "vitest run",
     "format": "prettier --write .",

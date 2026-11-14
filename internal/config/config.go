@@ -24,9 +24,13 @@ func Load(lookup func(string) (string, bool), readFile func(string) ([]byte, err
 	if err != nil || u == nil || (u.Scheme != "postgres" && u.Scheme != "postgresql") || u.Hostname() == "" || u.User == nil || u.User.Username() == "" || u.Path == "" || u.Path == "/" {
 		return c, errors.New("DATABASE_URL must identify a PostgreSQL host, user and database")
 	}
+	query, queryErr := url.ParseQuery(u.RawQuery)
+	if queryErr != nil {
+		return c, errors.New("invalid database URL parameters")
+	}
 	c.DatabasePasswordFile, _ = lookup("DB_PASSWORD_FILE")
 	if c.DatabasePasswordFile != "" {
-		if _, set := u.User.Password(); set {
+		if _, set := u.User.Password(); set || query.Has("password") {
 			return c, errors.New("configure a database password through one mechanism only")
 		}
 		b, e := readFile(c.DatabasePasswordFile)

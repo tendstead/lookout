@@ -31,6 +31,15 @@ host permissions; a host file with mode 600 cannot be read by UID 65532 in the
 container. Compose mounts the file as a read-only secret;
 its contents are not embedded in the image or frontend.
 
+Create the private directory before saving the password file:
+
+```sh
+mkdir -p .implementation
+chmod 700 .implementation
+# Save only the database role password in .implementation/database-password.
+chmod 644 .implementation/database-password
+```
+
 | Variable | Meaning |
 | --- | --- |
 | `DATABASE_URL` | PostgreSQL URL including user, host and database; omit its password when using the password file. |
@@ -55,7 +64,8 @@ existing authenticated reverse proxy. No router port forwarding is needed for LA
 use. HTTP works for this preview; it does not rely on service-worker offline support.
 
 ```sh
-docker compose up -d --build --wait
+make build
+docker compose up -d --no-build --wait
 docker compose ps
 docker compose logs --tail=50 app
 docker compose down

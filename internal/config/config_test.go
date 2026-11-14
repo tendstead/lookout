@@ -19,6 +19,10 @@ func TestLoadConfig(t *testing.T) {
 		{name: "malformed", env: map[string]string{"DATABASE_URL": "https://secret@example.com"}, bad: true},
 		{name: "password file", env: map[string]string{"DATABASE_URL": "postgres://owner@db/lookout", "DB_PASSWORD_FILE": "/secret", "LISTEN_ADDR": ":9000"}, file: "secret\n"},
 		{name: "unreadable", env: map[string]string{"DATABASE_URL": "postgres://owner@db/lookout", "DB_PASSWORD_FILE": "/secret"}, fileErr: errors.New("secret"), bad: true},
+		{name: "query conflict", env: map[string]string{"DATABASE_URL": "postgres://owner@db/lookout?password=secret", "DB_PASSWORD_FILE": "/secret"}, file: "new-password", bad: true},
+		{name: "encoded query conflict", env: map[string]string{"DATABASE_URL": "postgres://owner@db/lookout?pass%77ord=secret", "DB_PASSWORD_FILE": "/secret"}, file: "new-password", bad: true},
+		{name: "empty query conflict", env: map[string]string{"DATABASE_URL": "postgres://owner@db/lookout?password=", "DB_PASSWORD_FILE": "/secret"}, file: "new-password", bad: true},
+		{name: "invalid query", env: map[string]string{"DATABASE_URL": "postgres://owner@db/lookout?pass%xxword=secret", "DB_PASSWORD_FILE": "/secret"}, file: "new-password", bad: true},
 		{name: "conflict", env: map[string]string{"DATABASE_URL": "postgres://owner:secret@db/lookout", "DB_PASSWORD_FILE": "/secret"}, bad: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -9,17 +9,18 @@ for the following milestones. No media files are scanned or changed in this vers
 
 ## Run
 
-Requires Docker Compose and an existing PostgreSQL server with a dedicated Lookout
+Requires Docker Engine with Compose/Buildx, Make, and an existing PostgreSQL server with a dedicated Lookout
 database and login role. Follow [database setup](docs/deployment.md), then:
 
 ```sh
 cp .env.example .env
 # Set the database URL, password-file path and database Docker network in .env.
-docker compose up -d --build --wait
+make build
+docker compose up -d --no-build --wait
 ```
 
 Open <http://localhost:8083>. To use Lookout on a phone, set `LISTEN_ADDR=0.0.0.0`
-in `.env`, recreate the app with `docker compose up -d --wait`, and visit
+in `.env`, recreate the app with `docker compose up -d --no-build --wait`, and visit
 `http://<your-computer-LAN-address>:8083` while connected to the same local network.
 Lookout has no application login and is intended for a trusted network.
 

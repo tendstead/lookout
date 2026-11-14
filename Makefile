@@ -22,9 +22,9 @@ web-check:
 web-build:
 	$(TOOLS) run --rm web npm run build
 build:
-	docker build -t lookout:local .
-up:
-	docker compose up -d --build --wait
+	sh scripts/build.sh
+up: build
+	docker compose up -d --no-build --wait
 down:
 	docker compose down
 check: fmt-check vet test service-test web-check e2e vuln workflow-lint

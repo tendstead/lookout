@@ -22,6 +22,7 @@ GitHub release APIs and the official PostgreSQL Docker image tags.
 | @types/node | 26.6.6 |
 | govulncheck | 1.9.0 |
 | actionlint | 1.7.12 |
+| BuildKit (dedicated bounded builder) | 0.35.0 |
 | actions/checkout | 7.0.1, release commit pinned |
 | actions/upload-artifact | 7.0.2, release commit pinned |
 

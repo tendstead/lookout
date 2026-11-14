@@ -2,7 +2,6 @@ name: lookout
 services:
   app:
     image: lookout:local
-    build: .
     cpus: 1
     mem_limit: 128m
     memswap_limit: 128m

@@ -11,6 +11,7 @@ PostgreSQL server. This is a small foundation observation, not a catalogue bench
 | Current Lookout database connections | 1 (pool maximum 4) |
 | App memory / CPU limits | 128 MiB / 1 CPU |
 | Go soft memory limit | 96 MiB |
+| Verified BuildKit hard memory / swap / CPU budget | 2 GiB / 2 GiB total / 2 CPUs |
 | Browser tests against the LAN instance | 8 passed |
 | Scan / discovery / downloader peaks | Unmeasured; features not implemented |
 
@@ -30,3 +31,8 @@ Before the catalogue milestone: verify direct metadata provider access/coverage,
 capture the reported existing-file recognition failure using disposable copies,
 and define canonical identity/source-health contracts. No NAS media or public
 source polling was used for this baseline.
+
+The dedicated `lookout-builder` container was inspected after its bounded build:
+Docker Memory and MemorySwap were both 2,147,483,648 bytes, CpuQuota 200,000 and
+CpuPeriod 100,000. It was stopped after building. Runtime and builder budgets are
+separate; see `scripts/check-builder-budget.sh`.

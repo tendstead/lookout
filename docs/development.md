@@ -1,6 +1,10 @@
 # Development and checks
 
-Build and test tools run in bounded Docker containers. No GitHub repository is
+Build and test tools run in bounded Docker containers. `make build` uses a dedicated
+BuildKit builder with an enforced 2 GiB RAM/no extra swap and 2 CPU budget, verifies
+its effective Docker settings before building, and stops it after the build. Its
+cache is retained for subsequent builds. `compose.builder.yaml` carries the BuildKit
+image version for Dependabot. The global/default builder is not changed. No GitHub repository is
 needed for local development. The Go module's future repository path does not
 require publishing it before use.
 

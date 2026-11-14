@@ -2,7 +2,11 @@ package store
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"github.com/jackc/pgx/v5"
 	"github.com/tendstead/lookout/internal/config"
+	urlpkg "net/url"
 	"os"
 	"strings"
 	"sync"
@@ -15,11 +19,34 @@ func testStore(t *testing.T) *Store {
 	if url == "" {
 		t.Skip("run make service-test")
 	}
-	s, e := Open(context.Background(), config.Config{DatabaseURL: url})
+	admin, e := Open(context.Background(), config.Config{DatabaseURL: url})
 	if e != nil {
 		t.Fatal(e)
 	}
-	t.Cleanup(s.Close)
+	var random [8]byte
+	if _, e = rand.Read(random[:]); e != nil {
+		t.Fatal(e)
+	}
+	schema := "test_" + hex.EncodeToString(random[:])
+	if _, e = admin.pool.Exec(context.Background(), "CREATE SCHEMA "+pgx.Identifier{schema}.Sanitize()); e != nil {
+		t.Fatal(e)
+	}
+	parsed, e := urlpkg.Parse(url)
+	if e != nil {
+		t.Fatal(e)
+	}
+	q := parsed.Query()
+	q.Set("search_path", schema)
+	parsed.RawQuery = q.Encode()
+	s, e := Open(context.Background(), config.Config{DatabaseURL: parsed.String()})
+	if e != nil {
+		t.Fatal(e)
+	}
+	t.Cleanup(func() {
+		s.Close()
+		_, _ = admin.pool.Exec(context.Background(), "DROP SCHEMA "+pgx.Identifier{schema}.Sanitize()+" CASCADE")
+		admin.Close()
+	})
 	return s
 }
 func TestMigrateTwice(t *testing.T) {

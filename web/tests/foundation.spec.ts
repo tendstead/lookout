@@ -31,8 +31,17 @@ test('foundation is usable, bilingual and persists preferences', async ({
     if (testInfo.project.name === 'mobile') {
       await page.goto('/releases');
       await expect(
-        page.getByRole('heading', { name: 'Upcoming episodes', exact: true }),
+        page.getByRole('heading', {
+          name: 'Seasons missing from your library',
+          exact: true,
+        }),
       ).toBeVisible();
+      const gaps = page.getByRole('region', {
+        name: 'Seasons missing from your library',
+        exact: true,
+      });
+      await expect(gaps.getByRole('status')).toHaveCount(0);
+      await gaps.evaluate((el) => el.scrollIntoView({ block: 'start' }));
     }
     await page.screenshot({
       path: `../docs/screenshots/${testInfo.project.name}.png`,

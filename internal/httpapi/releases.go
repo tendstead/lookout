@@ -15,6 +15,7 @@ import (
 type ReleaseService interface {
 	Status() tracking.Status
 	Overview(context.Context, int, int) (store.ReleaseOverview, error)
+	Gaps(context.Context, store.TitleQuery, string) (store.SeasonGapPage, error)
 	Follow(context.Context, string) (store.Follow, error)
 	SetFollow(context.Context, string, bool) error
 	Queue() error
@@ -55,6 +56,27 @@ func (o apiOptions) serveReleases(w http.ResponseWriter, r *http.Request) bool {
 	}
 	if o.releases == nil {
 		return false
+	}
+	if p == "/api/v1/releases/gaps" {
+		if !readMethod(w, r) {
+			return true
+		}
+		q, e := titleQuery(r)
+		kind := r.URL.Query().Get("kind")
+		if kind == "" {
+			kind = "missing"
+		}
+		if e != nil || (kind != "missing" && kind != "partial" && kind != "review") {
+			apiError(w, 400, "invalid_query", "Invalid season comparison query")
+			return true
+		}
+		v, e := o.releases.Gaps(r.Context(), q, kind)
+		if e != nil {
+			apiError(w, 503, "comparison_unavailable", "Season comparison unavailable")
+		} else {
+			jsonResponse(w, 200, v)
+		}
+		return true
 	}
 	if p == "/api/v1/releases" {
 		if !readMethod(w, r) {

@@ -146,3 +146,7 @@ func (s *Service) SetFollow(ctx context.Context, id string, enabled bool) error 
 func refreshDue(f store.Follow, now time.Time, force bool) bool {
 	return force || !now.Before(f.NextRefresh) || !f.Initialized && f.LastError == ""
 }
+
+func (s *Service) Gaps(ctx context.Context, q store.TitleQuery, kind string) (store.SeasonGapPage, error) {
+	return s.Store.SeasonGaps(ctx, q, kind, time.Now().UTC())
+}

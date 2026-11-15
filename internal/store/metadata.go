@@ -69,6 +69,7 @@ func (s *Store) ApplyMetadata(ctx context.Context, id string, u MetadataUpdate) 
 			}
 		}
 	}
+	previousTVmaze := old["tvmaze"]
 	ids := old
 	if u.Manual {
 		ids = map[string]string{}
@@ -85,14 +86,27 @@ func (s *Store) ApplyMetadata(ctx context.Context, id string, u MetadataUpdate) 
 		displaySource = "manual:" + displaySource
 	}
 	preserve := !u.Manual && u.Provider == "tvmaze" && (provenance == "jellyfin" || provenance == "plex" || provenance == "nfo")
-	_, e = tx.Exec(ctx, `UPDATE library_titles SET name=CASE WHEN $9 OR $2='' THEN name ELSE $2 END,year=COALESCE(NULLIF($3,0),year),
+	_, e = tx.Exec(ctx, `UPDATE library_titles SET name=CASE WHEN $9 OR $2='' THEN name ELSE $2 END,year=CASE WHEN $12 THEN NULLIF($3,0) ELSE COALESCE(NULLIF($3,0),year) END,
  overview=CASE WHEN $9 AND overview<>'' OR $4='' THEN overview ELSE $4 END,provider_ids=$5,
- provenance=CASE WHEN $9 THEN provenance ELSE $6 END,match_status='matched',metadata_url=CASE WHEN $7='' THEN metadata_url ELSE $7 END,
- artwork_connection=CASE WHEN $9 OR $8='' THEN artwork_connection ELSE NULLIF($8,'')::uuid END,
- artwork_path=CASE WHEN $9 OR $10='' THEN artwork_path ELSE $10 END,
- artwork_url=CASE WHEN $9 OR $11='' THEN artwork_url ELSE $11 END,updated_at=now() WHERE id::text=$1`, id, u.Name, u.Year, u.Overview, raw, displaySource, u.URL, u.ConnectionID, preserve, u.ArtworkPath, u.ImageURL)
+ provenance=CASE WHEN $9 THEN provenance ELSE $6 END,match_status='matched',metadata_url=CASE WHEN $12 THEN $7 WHEN $7='' THEN metadata_url ELSE $7 END,
+ artwork_connection=CASE WHEN $12 THEN NULLIF($8,'')::uuid WHEN $9 OR $8='' THEN artwork_connection ELSE NULLIF($8,'')::uuid END,
+ artwork_path=CASE WHEN $12 THEN $10 WHEN $9 OR $10='' THEN artwork_path ELSE $10 END,
+ artwork_url=CASE WHEN $12 THEN $11 WHEN $9 OR $11='' THEN artwork_url ELSE $11 END,updated_at=now() WHERE id::text=$1`, id, u.Name, u.Year, u.Overview, raw, displaySource, u.URL, u.ConnectionID, preserve, u.ArtworkPath, u.ImageURL, u.Manual)
 	if e != nil {
 		return e
+	}
+	if u.Manual || !preserve && (u.ArtworkPath != "" || u.ImageURL != "") {
+		if _, e = tx.Exec(ctx, "DELETE FROM metadata_images WHERE title_id::text=$1", id); e != nil {
+			return e
+		}
+	}
+	if previousTVmaze != ids["tvmaze"] {
+		if _, e = tx.Exec(ctx, "UPDATE release_follows SET provider_id=$2,initialized=false,baseline_at=now(),next_refresh_at=now(),last_error='' WHERE title_id::text=$1", id, ids["tvmaze"]); e != nil {
+			return e
+		}
+		if _, e = tx.Exec(ctx, `UPDATE notification_outbox o SET status='cancelled' FROM release_events event WHERE o.event_id=event.id AND event.title_id::text=$1 AND o.status IN('pending','retry')`, id); e != nil {
+			return e
+		}
 	}
 	snapshot, e := json.Marshal(u.Candidate)
 	if e != nil {

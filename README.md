@@ -2,10 +2,15 @@
 
 A self-hosted overview for your films, series and public videos.
 
-**Current version: foundation preview.** The app provides a responsive English/German
-interface, persistent language/theme preferences and live service/database checks.
-Media sources, library browsing, matching, subscriptions and notifications are planned
-for the following milestones. No media files are scanned or changed in this version.
+Lookout inventories an existing NAS over read-only SFTP, browses films and series,
+and enriches them from Jellyfin/Plex and optional TVmaze lookups. Collections keep
+their existing folders; individual films appear as separate cards. ZIP-contained
+videos appear as archive members without extraction.
+
+Follow series/anime for upcoming episodes and provider-reported season premieres.
+The first successful schedule fetch establishes a silent baseline. Optional Telegram
+alerts apply to future releases; verifying the bot/chat sends no test message.
+Lookout does not download, play, move, rename or delete media.
 
 ## Run
 
@@ -31,9 +36,9 @@ server. Language and theme are saved separately on each device.
 
 | Desktop | Phone |
 | --- | --- |
-| ![Lookout desktop overview with live database status](docs/screenshots/desktop.png) | ![Lookout mobile system status with language and theme controls](docs/screenshots/mobile.png) |
+| ![Lookout desktop library with metadata and cover artwork](docs/screenshots/desktop.png) | ![Lookout mobile upcoming releases](docs/screenshots/mobile.png) |
 
-See [deployment](docs/deployment.md), [API](docs/api.md), and
+Configure [read-only library and integrations](docs/library.md). See [deployment](docs/deployment.md), [API](docs/api.md), and
 [development and checks](docs/development.md) for more details.
 
 ## License

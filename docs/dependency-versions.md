@@ -1,4 +1,4 @@
-# Dependency baseline — 2026-11-14
+# Dependency baseline — 2026-11-15
 
 Verified directly against Go releases, the Go module proxy, npm's `latest` tags,
 GitHub release APIs and the official PostgreSQL Docker image tags.
@@ -6,6 +6,8 @@ GitHub release APIs and the official PostgreSQL Docker image tags.
 | Component | Version |
 | --- | --- |
 | Go | 1.27.4 |
+| pkg/sftp | 1.13.12 |
+| golang.org/x/crypto / x/sys | 0.59.0 / 0.50.0 |
 | pgx/v5 | 5.13.0 |
 | Node stable | 26.13.1 (27 entries were alpha prereleases) |
 | npm (production build tool) | 12.2.2 |
@@ -40,7 +42,7 @@ not an immutable promise about future upstream releases.
 
 ## Audit result
 
-The foundation check found no Go vulnerabilities. npm reported two low-severity
+The full library check found no Go vulnerabilities. npm reported two low-severity
 build-tool findings for `deepmerge` and its parent `@sveltejs/vite-plugin-svelte`
 ([GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4)), with no
 fix available at verification time. Both are development/build dependencies;

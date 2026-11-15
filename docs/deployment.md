@@ -2,7 +2,8 @@
 
 Run one Lookout app container. It serves its embedded static interface and uses an
 existing PostgreSQL server; production Compose does not create a database service.
-The foundation exposes read-only status endpoints and no administrative writes.
+Lookout writes catalogue, metadata and release state only to its dedicated database.
+See [library setup](library.md) for optional SFTP, media-server and Telegram configuration.
 
 ## Dedicated database
 
@@ -73,8 +74,7 @@ docker compose down
 
 The container runs as a nonroot user with a read-only filesystem, `/tmp` tmpfs,
 dropped capabilities, no-new-privileges and restart-unless-stopped. Initial budgets:
-one CPU, 128 MiB memory, no extra swap; Go soft limit 96 MiB. These are provisional
-foundation budgets, not promises for later scanning/discovery workloads.
+one CPU, 128 MiB memory, no extra swap; Go soft limit 96 MiB. These are local deployment budgets; measure scan and provider workloads before increasing concurrency.
 
 `/healthz` reports process liveness. `/readyz` performs a database ping bounded to
 two seconds. Failed database startup exits; a later database outage leaves liveness
@@ -82,5 +82,6 @@ working and changes readiness to HTTP 503. Database errors and credentials are n
 included in public responses or startup logs. SIGTERM allows ten seconds to stop.
 
 Back up the dedicated PostgreSQL database using your existing PostgreSQL backup
-process. Device preferences live in browser local storage. There are no media
-mounts or media mutations in this milestone.
+process. Device preferences live in browser local storage. Also back up the local connection encryption key with the database: encrypted server
+credentials cannot be recovered without it. Source configuration and credentials
+are private host files mounted read-only; NAS media are never mounted or mutated.

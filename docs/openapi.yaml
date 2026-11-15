@@ -6,7 +6,8 @@
     "license": {
       "name": "Elastic License 2.0",
       "identifier": "Elastic-2.0"
-    }
+    },
+    "description": "Read-only media inventory, metadata integration, release tracking and optional Telegram delivery. Trusted-network deployment; see docs/api.md for contracts."
   },
   "paths": {
     "/healthz": {
@@ -253,6 +254,564 @@
           },
           "405": {
             "description": "Method not allowed"
+          }
+        }
+      }
+    },
+    "/api/v1/titles": {
+      "get": {
+        "summary": "List searchable paginated titles",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        }
+      },
+      "head": {
+        "summary": "List searchable paginated titles (headers only)",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        }
+      }
+    },
+    "/api/v1/titles/{id}": {
+      "get": {
+        "summary": "Get title and media entries",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "head": {
+        "summary": "Get title and media entries (headers only)",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/sources": {
+      "get": {
+        "summary": "List sources and scan status",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        }
+      },
+      "head": {
+        "summary": "List sources and scan status (headers only)",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        }
+      }
+    },
+    "/api/v1/sources/{id}/scan": {
+      "post": {
+        "summary": "Queue a read-only source scan",
+        "responses": {
+          "202": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "JSON input documented in docs/api.md; empty actions use {}",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connections": {
+      "get": {
+        "summary": "List redacted connections and capabilities",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        }
+      },
+      "head": {
+        "summary": "List redacted connections and capabilities (headers only)",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        }
+      },
+      "post": {
+        "summary": "Save an encrypted media-server connection",
+        "responses": {
+          "201": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "JSON input documented in docs/api.md; empty actions use {}",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connections/{id}/verify": {
+      "post": {
+        "summary": "Verify media-server access",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "JSON input documented in docs/api.md; empty actions use {}",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connections/{id}/import": {
+      "post": {
+        "summary": "Queue path-mapped metadata import",
+        "responses": {
+          "202": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "JSON input documented in docs/api.md; empty actions use {}",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metadata/official": {
+      "post": {
+        "summary": "Queue authorized TVmaze enrichment",
+        "responses": {
+          "202": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "JSON input documented in docs/api.md; empty actions use {}",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/titles/{id}/metadata/search": {
+      "get": {
+        "summary": "Search TVmaze candidates",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "head": {
+        "summary": "Search TVmaze candidates (headers only)",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/titles/{id}/metadata": {
+      "post": {
+        "summary": "Save a manual TVmaze match",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "JSON input documented in docs/api.md; empty actions use {}",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/titles/{id}/artwork": {
+      "get": {
+        "summary": "Get cached or proxied artwork",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "head": {
+        "summary": "Get cached or proxied artwork (headers only)",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/releases": {
+      "get": {
+        "summary": "Get followed-title schedules and release events",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        }
+      },
+      "head": {
+        "summary": "Get followed-title schedules and release events (headers only)",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        }
+      }
+    },
+    "/api/v1/releases/refresh": {
+      "post": {
+        "summary": "Queue schedule refresh",
+        "responses": {
+          "202": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "JSON input documented in docs/api.md; empty actions use {}",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/titles/{id}/follow": {
+      "get": {
+        "summary": "Get follow state",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "head": {
+        "summary": "Get follow state (headers only)",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "Update follow state",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "JSON input documented in docs/api.md; empty actions use {}",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/telegram/status": {
+      "get": {
+        "summary": "Get secret-free Telegram state",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        }
+      },
+      "head": {
+        "summary": "Get secret-free Telegram state (headers only)",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        }
+      }
+    },
+    "/api/v1/telegram/verify": {
+      "post": {
+        "summary": "Verify Telegram without sending a message",
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "JSON input documented in docs/api.md; empty actions use {}",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
           }
         }
       }

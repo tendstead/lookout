@@ -8,7 +8,9 @@ their existing folders; individual films appear as separate cards. ZIP-contained
 videos appear as archive members without extraction.
 
 Follow series/anime for upcoming episodes and provider-reported season premieres.
-The first successful schedule fetch establishes a silent baseline. Optional Telegram
+See missing and partial aired seasons compared with your local inventory, with
+uncertain numbering separated for review. The first successful schedule fetch
+establishes a silent baseline. Optional Telegram
 alerts apply to future releases; verifying the bot/chat sends no test message.
 Lookout does not download, play, move, rename or delete media.
 
@@ -36,7 +38,7 @@ server. Language and theme are saved separately on each device.
 
 | Desktop | Phone |
 | --- | --- |
-| ![Lookout desktop library with metadata and cover artwork](docs/screenshots/desktop.png) | ![Lookout mobile upcoming releases](docs/screenshots/mobile.png) |
+| ![Lookout desktop library with metadata and cover artwork](docs/screenshots/desktop.png) | ![Lookout mobile missing-season comparison](docs/screenshots/mobile.png) |
 
 Configure [read-only library and integrations](docs/library.md). See [deployment](docs/deployment.md), [API](docs/api.md), and
 [development and checks](docs/development.md) for more details.

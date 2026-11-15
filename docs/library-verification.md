@@ -183,3 +183,15 @@ were verified in the owning source; this is not whole-library predownload. The
 running healthy image digest matched the tested build. README images were refreshed.
 No new external dependencies, migrations, source credentials or Telegram behavior
 were introduced.
+
+## Compact Overview posters — 2026-11-15
+
+Overview alone now uses compact 170px-minimum desktop posters and a 130px mobile
+minimum. At 1920px, live measurements changed 4 cards at 384px to 8 cards at 184px,
+approximately half the width. Limit width caps Overview at 1120px (six cards),
+while Releases retains its 1600px cap and 340px-minimum information cards. Phone
+verification showed two overview cards at 169px without overflow. The original
+oversized-layout assertion was observed failing before the CSS change; types,
+build, 36 browser cases and lifecycle checks then passed. The same 36 cases passed
+against the deployed service and both the real desktop and phone views were
+visually inspected. Resource observations are recorded in resource-baseline.md.

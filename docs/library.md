@@ -9,13 +9,15 @@ client read-only behavior does not change the permissions of your SSH account.
 
 ## Browsing, search and display width
 
-Overview and Releases use the same fluid card sizing: columns follow the available
-window width rather than a fixed count. **Limit width** in the top bar caps gallery
-content at 1600px, roughly four cards on an ultrawide display, while narrower
-screens keep adapting. The setting is shared between those two pages and saved
-only in this browser's localStorage (`lookout.limitWidth`). It survives reloads
-and browser sessions until cleared; other devices/browsers are independent. If
-storage is blocked, the toggle still works for the current page session.
+Overview and Releases both use fluid grids, with compact poster cards on Overview
+and larger information cards on Releases. At 1920px, Overview fits eight roughly 184px
+cards across; phones typically show two. **Limit width** caps Overview at 1120px
+(about six poster cards) and Releases at 1600px (about four information cards), so
+both remain readable on ultrawide screens. Narrower windows keep adapting.
+The toggle is shared between those pages and saved only in this browser's
+localStorage (`lookout.limitWidth`). It survives reloads and browser sessions until
+cleared; other devices/browsers are independent. If storage is blocked, it still
+works for the current page session.
 
 Overview search suggests up to eight locally catalogued titles after two characters
 and a short debounce. Suggestions include films, series and anime and respect the

@@ -54,10 +54,10 @@ test('foundation is usable, bilingual and persists preferences', async ({
       } else
         await upcoming.evaluate((el) => el.scrollIntoView({ block: 'start' }));
     } else {
-      await page.setViewportSize({ width: 1800, height: 1000 });
+      await page.setViewportSize({ width: 1920, height: 1000 });
       const grid = page.locator('.title-grid');
       if (await grid.count()) {
-        await grid.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+        await page.evaluate(() => window.scrollTo(0, 0));
         await page.waitForFunction(() =>
           [...document.querySelectorAll<HTMLImageElement>('.title-art img')]
             .filter((img) => {

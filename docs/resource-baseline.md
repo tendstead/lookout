@@ -44,3 +44,32 @@ sample reported 7.52 MiB container working set and 0.00% CPU. Hard limits remain
 128 MiB memory/total swap and one CPU. The integration override runs as nonroot
 1000:1000 to read the existing host key; read-only filesystem and mounts remain
 active. This sample is not a scan peak measurement or capacity promise.
+
+## Compact overview and current service — 2026-11-15
+
+Current dataset: 435 titles, 9,590 media entries, 11,079 episode cache rows. The app was
+sampled during ordinary live browsing/search and screenshot verification, not a
+synthetic stress test or a complete source-scan peak measurement.
+
+| Observation | Measured value |
+| --- | --- |
+| Docker working-set range over 8 samples | 9.648–14.11 MiB |
+| CPU across those samples | 0.00% idle; 0.06% and 1.84% activity samples |
+| Go process RSS / high-water RSS after browsing | 25,176 KiB / 25,176 KiB (about 24.6 MiB) |
+| Dedicated PostgreSQL database | 28,587,711 bytes (about 27.3 MiB) |
+| Cached image bytes | 4,297,599 bytes across 114 images (about 4.1 MiB, included in database size) |
+| Runtime Docker image, uncompressed | 15,827,796 bytes (about 15.1 MiB) |
+| Lookout database connections at sample | 4 (pool maximum 4) |
+| App hard memory / total memory+swap / CPU limits | 128 MiB / 128 MiB / 1 core |
+| Go soft memory limit | 96 MiB |
+
+Docker working set and process RSS use different accounting; they are not additive.
+These app RAM/CPU figures exclude the existing shared PostgreSQL server, browser,
+and temporary build/test containers. Database size refers only to Lookout's own
+database; the image figure excludes build caches. Runtime limits were inspected,
+and the healthy deployed image matched the tested build.
+
+The overview adjustment is presentation-only: actual 1920px checks measured 8 cards
+at 184px instead of the previous 4 at 384px; limited mode shows 6 at 173.3px, release
+cards remain 4 at 384px, and a 390px phone shows 2 at 169px. Types and all 36 browser cases,
+including lifecycle checks, passed; the same 36 cases passed on the live LAN service.

@@ -11,7 +11,7 @@
 
 No external search or credentials in client. Exclude titles with only missing/unconfirmed file evidence. Avoid stale-result races and keyboard traps. Upcoming dates do not imply a local copy or a released season; date-only never invents a time. Width preference belongs solely to this browser, survives navigation/reload, and does not break existing resize behavior. Artwork provenance remains series-level and proxied/cached.
 
-- [ ] RED→GREEN store/API regressions for observed local suggestions, query validation and bounded output; commit.
-- [ ] RED→GREEN browser regressions for date-led upcoming/premiere cards, keyboard/debounced local suggestions and failure/stale handling, shared width/reload/browser isolation and ultrawide resize.
-- [ ] Implement focused upcoming/search components and shared browser width setting; full checks and final review; fix meaningful issues.
-- [ ] Deploy tested image, inspect actual desktop/phone/ultrawide screenshots, refresh README/docs and commit locally.
+- [x] RED→GREEN store/API regressions for observed local suggestions, query validation and bounded output; commit.
+- [x] RED→GREEN browser regressions for date-led upcoming/premiere cards, keyboard/debounced local suggestions and failure/stale handling, shared width/reload/browser isolation and ultrawide resize.
+- [x] Implement focused upcoming/search components and shared browser width setting; full checks and final review; fix meaningful issues.
+- [x] Deploy tested image, inspect actual desktop/phone/ultrawide screenshots, refresh README/docs and commit locally.

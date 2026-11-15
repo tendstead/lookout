@@ -12,6 +12,7 @@ work returns 202; a busy/disabled worker returns 409. Errors have the form
 | `/readyz` | GET, HEAD | Database readiness; 503 when unavailable. |
 | `/api/v1/status` | GET, HEAD | Service identity; legacy stage identifier `foundation`. |
 | `/api/v1/titles` | GET, HEAD | `{items,total,limit,offset}`; `q`, `category`, `limit` (1–100, default48), `offset`. |
+| `/api/v1/titles/suggestions` | GET, HEAD | Local-only `{items:[{id,name,category,year?}]}`; `q` (2–300 characters), optional `category`; at most 8 observed/stable titles. |
 | `/api/v1/titles/{id}` | GET, HEAD | Title metadata and observed files. |
 | `/api/v1/sources` | GET, HEAD | Configured sources and scan health. |
 | `/api/v1/sources/{id}/scan` | POST | Queue read-only scan; `{}`. |
@@ -62,3 +63,11 @@ because episode numbers are season-specific. `total` counts series cards, while
 `missing`/`partial` still count seasons and `review` still counts titles. Review
 items remain one per title. Omitting `group_by` preserves flat per-season output;
 unsupported values return 400. Titles with the same display name retain separate IDs.
+
+Suggestion queries use only the local catalogue, never a metadata-provider search.
+Shorter queries return an empty list. Category/query validation matches title
+browsing; suggestions force limit 8 and offset 0 regardless of requested pagination.
+Only titles with at least one observed/stable file are eligible, including numbered
+ZIP inventory members. Missing/unconfirmed-only records remain visible in ordinary
+library browsing, but are excluded from suggestions. Responses contain no artwork
+URLs, provider credentials or remote-search data.

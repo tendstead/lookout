@@ -3,22 +3,8 @@
   import { translate, type Locale, type Key } from './i18n';
   let { locale }: { locale: Locale } = $props();
   const t = (key: Key) => translate(locale, key);
-  type Kind = 'missing' | 'partial' | 'review';
-  type Gap = {
-    title_id: string;
-    title: string;
-    category: string;
-    kind: Kind;
-    season: number;
-    latest_aired_season: number;
-    local_seasons: number[];
-    aired: number;
-    present: number;
-    missing_episodes: number[];
-    reasons: string[];
-    checked_at: string | null;
-    inventory_at: string | null;
-  };
+  import SeasonGapCard from './SeasonGapCard.svelte';
+  import type { Gap, Kind } from './season-gaps';
   let kind = $state<Kind>('missing');
   let query = $state('');
   let search = $state('');
@@ -30,14 +16,6 @@
   let failed = $state(false);
   const limit = 48;
   let generation = 0;
-  const reasons: Record<string, Key> = {
-    schedule_unavailable: 'gapScheduleReason',
-    inventory_unavailable: 'gapInventoryReason',
-    metadata_conflict: 'gapMetadataReason',
-    anime_ordering: 'gapAnimeReason',
-    unknown_numbering: 'gapNumberingReason',
-    unconfirmed_files: 'gapFilesReason',
-  };
   async function load() {
     const current = ++generation;
     loading = true;
@@ -82,12 +60,6 @@
     offset = 0;
     items = [];
     void load();
-  }
-  function date(value: string) {
-    return new Intl.DateTimeFormat(locale, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(new Date(value));
   }
   onMount(() => {
     void load();
@@ -160,48 +132,9 @@
       )}
     </p>
   {:else}<ul class="gap-list" aria-busy={loading}>
-      {#each items as item}<li>
-          <a class="release-title" href={'/titles/' + item.title_id}
-            >{item.title}</a
-          >
-          {#if item.kind === 'review'}
-            <strong>{t('gapReviewTab')}</strong>
-            <ul>
-              {#each item.reasons as reason}<li>
-                  {t(reasons[reason] || 'reviewStatus')}
-                </li>{/each}
-            </ul>
-          {:else}
-            <strong
-              >{t('season')}
-              {item.season} · {t(
-                item.kind === 'missing' ? 'gapMissing' : 'gapPartial',
-              )}</strong
-            >
-            <p>{item.present} / {item.aired} {t('gapPresent')}</p>
-            <details>
-              <summary
-                >{t('gapEpisodeNumbers')} ({item.missing_episodes
-                  .length})</summary
-              >
-              <p>{item.missing_episodes.join(', ')}</p>
-            </details>
-          {/if}
-          {#if item.latest_aired_season > 0}<p>
-              {t('gapLatest')}: {item.latest_aired_season}
-            </p>{/if}
-          <p>
-            {t('gapLocal')}: {item.local_seasons.length
-              ? item.local_seasons.join(', ')
-              : t('gapNoLocal')}
-          </p>
-          <small
-            >{#if item.checked_at}{t('gapChecked')}: {date(
-                item.checked_at,
-              )}{/if}{#if item.inventory_at}<br />{t('gapScanned')}: {date(
-                item.inventory_at,
-              )}{/if}</small
-          >
+      {#each items as item (item.title_id + ':' + item.kind + ':' + item.season)}<li
+        >
+          <SeasonGapCard {item} {locale} />
         </li>{/each}
     </ul>{/if}
   {#if total > limit}<nav
@@ -262,39 +195,19 @@
     padding: 0;
     list-style: none;
     display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
+    align-items: start;
   }
   .gap-list > li {
     display: block;
-    padding: 1rem;
-    border: 1px solid var(--ts-border);
-    border-radius: 0.75rem;
-    overflow-wrap: anywhere;
+    padding: 0;
+    border: 0;
     min-width: 0;
   }
-  .gap-list ul {
-    padding-left: 1.25rem;
-    margin: 0.5rem 0;
-  }
-  .gap-list ul li {
-    display: list-item;
-    padding: 0.25rem 0;
-    border: 0;
-  }
-  .gap-list strong {
-    display: block;
-    margin: 0.5rem 0;
-  }
-  .gap-list p {
-    margin: 0.5rem 0;
-  }
-  .gap-list small {
-    color: var(--ts-muted);
-  }
-  .gap-list details {
-    margin: 0.75rem 0;
-  }
-  .gap-list summary {
-    cursor: pointer;
+  @media (max-width: 767px) {
+    .gap-list {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 </style>

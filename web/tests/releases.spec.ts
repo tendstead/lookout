@@ -107,6 +107,12 @@ test('Telegram connection verification has no send-test action', async ({
 test('missing seasons compare local inventory and keep partial and uncertain titles separate', async ({
   page,
 }) => {
+  await page.route('**/api/v1/titles/example/artwork', (route) =>
+    route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300"><rect width="200" height="300" fill="#6750a4"/></svg>',
+    }),
+  );
   const requested: string[] = [];
   await page.route('**/api/v1/releases/gaps?*', (route) => {
     const url = new URL(route.request().url());
@@ -158,18 +164,29 @@ test('missing seasons compare local inventory and keep partial and uncertain tit
   });
   await expect(view.getByText('Example Series', { exact: true })).toBeVisible();
   const card = view.locator('.gap-list > li').first();
-  const cardBox = await card.boundingBox();
+  const art = card.getByRole('img', {
+    name: 'Series artwork for Example Series',
+    exact: true,
+  });
+  await expect(art).toBeVisible();
+  await expect(art).toHaveAttribute('src', '/api/v1/titles/example/artwork');
+  const coverage = card.getByRole('progressbar', {
+    name: 'Aired episode coverage',
+    exact: true,
+  });
+  await expect(coverage).toHaveAttribute('aria-valuenow', '0');
+  await expect(coverage).toHaveAttribute('aria-valuemax', '10');
   const titleBox = await view
     .getByText('Example Series', { exact: true })
     .boundingBox();
-  const seasonBox = await card.locator('strong').boundingBox();
-  expect(titleBox!.width).toBeGreaterThan(cardBox!.width * 0.8);
-  expect(seasonBox!.y).toBeGreaterThanOrEqual(titleBox!.y + titleBox!.height);
+  const artBox = await art.boundingBox();
+  expect(titleBox!.width).toBeGreaterThan(100);
+  expect(artBox!.height).toBeGreaterThan(100);
   await expect(
     view.getByText('Latest aired season: 4', { exact: true }),
   ).toBeVisible();
   await expect(
-    view.getByText('Local seasons: 1, 2, 3', { exact: true }),
+    view.getByRole('group', { name: 'Local seasons: 1, 2, 3', exact: true }),
   ).toBeVisible();
   await expect(
     view.getByText('0 / 10 aired episodes present', { exact: true }),
@@ -177,6 +194,24 @@ test('missing seasons compare local inventory and keep partial and uncertain tit
   await view.getByRole('button', { name: /Partial seasons/ }).click();
   await expect(
     view.getByText('3 / 10 aired episodes present', { exact: true }),
+  ).toBeVisible();
+  await expect(coverage).toHaveAttribute('aria-valuenow', '3');
+  await card
+    .getByText('Missing aired episode numbers (7)', { exact: true })
+    .click();
+  await expect(
+    card.getByRole('group', {
+      name: 'Missing aired episode numbers',
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    card
+      .getByRole('group', {
+        name: 'Missing aired episode numbers',
+        exact: true,
+      })
+      .getByText('4', { exact: true }),
   ).toBeVisible();
   await view.getByRole('button', { name: /Needs review/ }).click();
   await expect(
@@ -193,6 +228,7 @@ test('missing seasons compare local inventory and keep partial and uncertain tit
     }),
   ).toBeVisible();
   await expect(view.getByText(/aired episodes present/)).toHaveCount(0);
+  await expect(view.getByRole('progressbar')).toHaveCount(0);
   expect(requested).toEqual(
     expect.arrayContaining(['missing', 'partial', 'review']),
   );
@@ -260,4 +296,71 @@ test('season gap polling returns to a valid page when results shrink', async ({
       exact: true,
     }),
   ).toHaveCount(0);
+});
+
+test('season artwork failure keeps visual coverage and title usable', async ({
+  page,
+}) => {
+  await page.route('**/api/v1/releases/gaps?*', (route) =>
+    route.fulfill({
+      json: {
+        items: [
+          {
+            title_id: 'no-art',
+            title: 'A long series title with no artwork available',
+            category: 'series',
+            kind: 'missing',
+            season: 12,
+            latest_aired_season: 12,
+            local_seasons: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+            aired: 3,
+            present: 0,
+            missing_episodes: [1, 2, 3],
+            reasons: [],
+            checked_at: null,
+            inventory_at: null,
+          },
+        ],
+        total: 1,
+        missing: 1,
+        partial: 0,
+        review: 0,
+        limit: 48,
+        offset: 0,
+      },
+    }),
+  );
+  await page.route('**/api/v1/titles/no-art/artwork', (route) =>
+    route.fulfill({ status: 404, body: 'Not available' }),
+  );
+  await page.goto('/releases');
+  const view = page.getByRole('region', {
+    name: 'Seasons missing from your library',
+    exact: true,
+  });
+  await expect(view.getByText('No artwork', { exact: true })).toBeVisible();
+  await expect(
+    view.getByRole('link', {
+      name: 'A long series title with no artwork available',
+      exact: true,
+    }),
+  ).toHaveAttribute('href', '/titles/no-art');
+  await expect(view.getByRole('progressbar')).toHaveAttribute(
+    'aria-valuemax',
+    '3',
+  );
+  await page.getByRole('button', { name: 'Use dark theme' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.getByRole('button', { name: 'DE', exact: true }).click();
+  await expect(
+    page.getByRole('heading', {
+      name: 'Fehlende Staffeln in deiner Mediathek',
+      exact: true,
+    }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
 });

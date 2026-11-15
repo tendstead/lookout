@@ -155,6 +155,10 @@ export const translations = {
     gapAnimeReason: 'Anime season ordering needs verification.',
     gapNumberingReason: 'Some local files have unknown episode numbering.',
     gapFilesReason: 'Some local files were not confirmed by the latest scan.',
+    gapSeriesArtwork: 'Series artwork for',
+    gapNoArtwork: 'No artwork',
+    gapCoverage: 'Aired episode coverage',
+    gapEvidence: 'Data freshness',
     gapChecked: 'Schedule checked',
     gapScanned: 'Source scanned',
 
@@ -364,6 +368,10 @@ export const translations = {
     gapNumberingReason: 'Einige lokale Dateien haben unbekannte Folgennummern.',
     gapFilesReason:
       'Einige lokale Dateien wurden beim letzten Scan nicht bestätigt.',
+    gapSeriesArtwork: 'Serienbild für',
+    gapNoArtwork: 'Kein Bild verfügbar',
+    gapCoverage: 'Abdeckung ausgestrahlter Folgen',
+    gapEvidence: 'Datenstand',
     gapChecked: 'Sendeplan geprüft',
     gapScanned: 'Quelle gescannt',
 

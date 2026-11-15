@@ -57,3 +57,30 @@ Only Lookout's own database/configuration and local repository were written.
 No remote repository, push or release was created. README screenshots show the
 actual LAN library and mobile release view; secrets and raw inventory evidence
 remain in ignored local files.
+
+## Missing-season comparison follow-up — 2026-11-15
+
+The Releases view now compares historical and newly aired numbered episodes with
+observed local season/episode sets. A live read-only query and complete API page
+walk agreed on 45 missing seasons, 23 partial seasons and 84 titles needing review.
+Unknown numbering, anime ordering, stale/unavailable sources and unmatched metadata
+remain explicit review items. ZIP/loose duplicate copies do not inflate episode
+coverage; old provider identities do not contribute current schedules.
+
+The full check passed with 20 desktop/mobile cases and isolated database/domain/API
+regressions. Fresh review found no Critical/Important issue and one pagination edge
+case, reproduced with a controlled browser clock and corrected. Visual screenshot
+inspection subsequently exposed inherited flex styling on cards; geometric browser
+regressions reproduce it and require full-width titles above season details. The
+card and review-list layouts now explicitly override that inherited styling.
+
+No new dependency, migration, provider request, source scan or Telegram action is
+introduced by computing gaps. The existing inventory and release workers retain
+their schedules. Telegram delivery remains disabled, and this comparison generates
+no historical notifications. See [library setup](library.md) for interpretation.
+
+After the layout correction, Svelte/TypeScript, production build, all 20 browser
+cases and lifecycle checks passed again. The same 20 cases passed against the
+healthy LAN service, and the refreshed phone screenshot was visually inspected.
+The running image digest matched the tested image; all API comparison counts
+remained 45/23/84 after deployment.

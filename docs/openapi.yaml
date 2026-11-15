@@ -815,6 +815,142 @@
           }
         }
       }
+    },
+    "/api/v1/releases/gaps": {
+      "get": {
+        "summary": "Compare aired seasons against observed local numbering",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "missing",
+                "partial",
+                "review"
+              ],
+              "default": "missing"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 300
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "series",
+                "anime_series"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 48
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SeasonGapPage; see docs/api.md for comparison/review item contract"
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "503": {
+            "description": "Comparison unavailable"
+          }
+        }
+      },
+      "head": {
+        "summary": "Compare aired seasons against observed local numbering (headers only)",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "missing",
+                "partial",
+                "review"
+              ],
+              "default": "missing"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 300
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "series",
+                "anime_series"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 48
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SeasonGapPage; see docs/api.md for comparison/review item contract"
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "503": {
+            "description": "Comparison unavailable"
+          }
+        }
+      }
     }
   }
 }

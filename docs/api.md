@@ -24,6 +24,7 @@ work returns 202; a busy/disabled worker returns 409. Errors have the form
 | `/api/v1/titles/{id}/metadata` | POST | Manual identity: `{"provider":"tvmaze","id":"..."}`. |
 | `/api/v1/titles/{id}/artwork` | GET, HEAD | Bounded local image proxy/cache, ETag support. |
 | `/api/v1/releases` | GET, HEAD | `{data,progress}`: follows, unmatched titles, upcoming episodes and recent events; `limit`, `offset`. |
+| `/api/v1/releases/gaps` | GET, HEAD | `{items,total,missing,partial,review,limit,offset}`; `kind` = `missing` (default), `partial`, `review`; `q`, `category`, `limit`, `offset`. |
 | `/api/v1/releases/refresh` | POST | Queue schedule refresh; `{}`. |
 | `/api/v1/titles/{id}/follow` | GET, HEAD | Follow and baseline state. |
 | `/api/v1/titles/{id}/follow` | POST | `{"enabled":true}` or false. |
@@ -44,3 +45,11 @@ Unknown API routes return JSON 404 instead of SPA HTML. Unsupported methods retu
 405 with Allow; malformed/oversized requests return 400/413; public metadata calls
 return 403 when permission is disabled. JSON uses no-store; artwork uses private
 revalidation. There is no Telegram send/test endpoint and no remote-media write API.
+
+Season-gap items contain `title_id`, `title`, `category`, `kind`, `season`,
+`latest_aired_season`, `local_seasons`, `aired`, `present`, `missing_episodes`,
+`reasons`, `checked_at`, `inventory_at`. Review items have no definitive season
+claim (`season`, `aired`, `present` are zero); `reasons` explains uncertainty.
+Counts `missing`/`partial` refer to seasons and `review` to titles for the current
+search/category, before kind selection and pagination. Comparisons read one
+consistent database snapshot and never create events or notifications.

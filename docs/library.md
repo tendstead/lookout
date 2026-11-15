@@ -105,6 +105,29 @@ to seed follows for imported episodic titles. Schedule caches refresh every six
 hours, with due dates checked locally each minute. Releases shows unmatched follows
 for manual review rather than implying schedule coverage.
 
+### Missing and partial seasons
+
+Open Releases → **Seasons missing from your library**. Missing seasons have no
+recognized local copies of their aired numbered episodes. Partial seasons have
+some, with a list of the aired episode numbers still absent. Each row shows the
+latest aired season, recognized local seasons, schedule-check time and source-scan
+time. Search filters all three tabs; each has its own paginated results.
+
+This comparison includes historical seasons and works independently of the quiet
+notification baseline. It compares distinct season/episode pairs, so duplicate
+copies do not inflate coverage and explicitly numbered ZIP members count. Counts
+refer to aired episodes, including currently running seasons, not a guarantee that
+a whole season has finished airing. Specials, unknown dates and future episodes
+are excluded.
+
+**Needs review** contains titles with missing/current-identity schedule data,
+conflicting metadata, unrecognized local numbering, unconfirmed files, a source
+scan older than three hours, or a source not in its ready state. Anime season
+ordering always requires review because local/TVDB and TVmaze season structures
+can differ. Those titles do not produce definitive missing/partial claims.
+Refresh schedules or rescan the source as appropriate; changing data is reflected
+by the comparison without generating historical Telegram alerts.
+
 The first successful fetch establishes a silent baseline: old episodes generate no
 alerts. A later reported air time creates a deduplicated episode event; episode 1
 of a regular season also creates a season event, coalesced into one Telegram message.

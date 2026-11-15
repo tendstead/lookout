@@ -18,6 +18,8 @@ type LibraryStore interface {
 }
 type ScanRequester interface{ RequestScan(string) error }
 type apiOptions struct {
+	releases  ReleaseService
+	telegram  TelegramService
 	metadata  MetadataService
 	catalogue LibraryStore
 	scans     ScanRequester

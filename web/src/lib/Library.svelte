@@ -19,6 +19,8 @@
     metadata_url?: string;
   };
   type FileItem = {
+    storage?: string;
+    archive_member?: string;
     id: number;
     relative_path: string;
     size: number;
@@ -233,10 +235,19 @@
           name={detail.name}
         />{/if}
       <h3>{t('observedFiles')}</h3>
+      {#if detail.files.some((f) => f.storage === 'zip')}<p
+          class="metadata-note"
+        >
+          {t('archivedNote')}
+        </p>{/if}
       <ul class="observed-files">
         {#each detail.files as file}<li>
-            <div class="file-name">{file.relative_path}</div>
+            <div class="file-name">
+              {file.relative_path}{#if file.archive_member}!/{file.archive_member}{/if}
+            </div>
             <div class="file-note">
+              {#if file.storage === 'zip'}<strong>{t('archivedMedia')}</strong> ·
+              {/if}
               {#if file.episodes?.length}{t('season')}
                 {file.season} · {t('episode')}
                 {file.episodes.join(', ')}{:else}{t('unknownNumbering')}{/if} · {(

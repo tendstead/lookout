@@ -1,5 +1,8 @@
 export const translations = {
   en: {
+    archivedMedia: 'Inside ZIP archive',
+    archivedNote:
+      'Archive contents are listed without extraction. They are not ordinary playable files.',
     releases: 'Releases',
     upcomingEpisodes: 'Upcoming episodes',
     reportedAired: 'Reported aired',
@@ -87,7 +90,7 @@ export const translations = {
     animeMovieCategory: 'Anime films',
     animeSeriesCategory: 'Anime series',
     titles: 'titles',
-    files: 'files',
+    files: 'media entries',
     previous: 'Previous',
     nextPage: 'Next',
     page: 'Page',
@@ -169,6 +172,9 @@ export const translations = {
     api: 'Read-only status API',
   },
   de: {
+    archivedMedia: 'Im ZIP-Archiv',
+    archivedNote:
+      'Archivinhalte werden ohne Entpacken aufgeführt. Sie sind keine direkt abspielbaren Dateien.',
     releases: 'Veröffentlichungen',
     upcomingEpisodes: 'Kommende Folgen',
     reportedAired: 'Laut Anbieter ausgestrahlt',
@@ -259,7 +265,7 @@ export const translations = {
     animeMovieCategory: 'Anime-Filme',
     animeSeriesCategory: 'Anime-Serien',
     titles: 'Titel',
-    files: 'Dateien',
+    files: 'Medieneinträge',
     previous: 'Zurück',
     nextPage: 'Weiter',
     page: 'Seite',

@@ -34,15 +34,17 @@ type TitlePage struct {
 	Offset int     `json:"offset"`
 }
 type MediaFile struct {
-	ID           int64     `json:"id"`
-	RelativePath string    `json:"relative_path"`
-	Size         int64     `json:"size"`
-	Modified     time.Time `json:"modified"`
-	Season       *int      `json:"season"`
-	Episodes     []int     `json:"episodes"`
-	Numbering    string    `json:"numbering"`
-	EpisodeTitle string    `json:"episode_title"`
-	Observation  string    `json:"observation"`
+	Storage       string    `json:"storage"`
+	ArchiveMember string    `json:"archive_member,omitempty"`
+	ID            int64     `json:"id"`
+	RelativePath  string    `json:"relative_path"`
+	Size          int64     `json:"size"`
+	Modified      time.Time `json:"modified"`
+	Season        *int      `json:"season"`
+	Episodes      []int     `json:"episodes"`
+	Numbering     string    `json:"numbering"`
+	EpisodeTitle  string    `json:"episode_title"`
+	Observation   string    `json:"observation"`
 }
 type TitleDetail struct {
 	Title
@@ -101,14 +103,14 @@ func (s *Store) GetTitle(ctx context.Context, id string) (TitleDetail, error) {
 	}
 	out.Title = v
 	out.Files = []MediaFile{}
-	rows, e := s.pool.Query(ctx, `SELECT id,relative_path,size,modified_at,season,episodes,numbering,episode_title,observation FROM library_files WHERE title_id=$1 ORDER BY season NULLS LAST,relative_path`, v.ID)
+	rows, e := s.pool.Query(ctx, `SELECT id,relative_path,size,modified_at,season,episodes,numbering,episode_title,observation,storage,archive_member FROM library_files WHERE title_id=$1 ORDER BY season NULLS LAST,relative_path`, v.ID)
 	if e != nil {
 		return out, e
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var f MediaFile
-		if e = rows.Scan(&f.ID, &f.RelativePath, &f.Size, &f.Modified, &f.Season, &f.Episodes, &f.Numbering, &f.EpisodeTitle, &f.Observation); e != nil {
+		if e = rows.Scan(&f.ID, &f.RelativePath, &f.Size, &f.Modified, &f.Season, &f.Episodes, &f.Numbering, &f.EpisodeTitle, &f.Observation, &f.Storage, &f.ArchiveMember); e != nil {
 			return out, e
 		}
 		out.Files = append(out.Files, f)

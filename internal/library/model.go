@@ -25,19 +25,23 @@ type Metadata struct {
 	Provenance  string            `json:"provenance,omitempty"`
 }
 type FileObservation struct {
-	SourceID     string    `json:"source_id"`
-	RelativePath string    `json:"relative_path"`
-	Group        string    `json:"group"`
-	Category     string    `json:"category"`
-	Size         int64     `json:"size"`
-	Modified     time.Time `json:"modified"`
-	Title        Metadata  `json:"title"`
-	Season       int       `json:"season,omitempty"`
-	Episodes     []int     `json:"episodes,omitempty"`
-	Numbering    string    `json:"numbering"`
-	EpisodeTitle string    `json:"episode_title,omitempty"`
+	Storage       string    `json:"storage,omitempty"`
+	ArchiveMember string    `json:"archive_member,omitempty"`
+	SourceID      string    `json:"source_id"`
+	RelativePath  string    `json:"relative_path"`
+	Group         string    `json:"group"`
+	Category      string    `json:"category"`
+	Size          int64     `json:"size"`
+	Modified      time.Time `json:"modified"`
+	Title         Metadata  `json:"title"`
+	Season        int       `json:"season,omitempty"`
+	Episodes      []int     `json:"episodes,omitempty"`
+	Numbering     string    `json:"numbering"`
+	EpisodeTitle  string    `json:"episode_title,omitempty"`
 }
 type ScanStats struct {
+	ArchivedMedia   int `json:"archived_media"`
+	Archives        int `json:"archives"`
 	Directories     int `json:"directories"`
 	Media           int `json:"media"`
 	Sidecars        int `json:"sidecars"`

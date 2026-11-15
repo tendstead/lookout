@@ -34,7 +34,7 @@ type migration struct {
 }
 
 func (s *Store) Migrate(ctx context.Context) error {
-	return s.migrate(ctx, []migration{{1, initial}, {2, catalogue}, {3, metadataSchema}, {4, releaseSchema}})
+	return s.migrate(ctx, []migration{{1, initial}, {2, catalogue}, {3, metadataSchema}, {4, releaseSchema}, {5, archiveSchema}})
 }
 func (s *Store) apply(ctx context.Context, version int, sql string) error {
 	return s.migrate(ctx, []migration{{version, sql}})

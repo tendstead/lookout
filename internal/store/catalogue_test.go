@@ -135,3 +135,37 @@ func TestGroupingCorrectionRetainsFiles(t *testing.T) {
 		t.Fatalf("empty generated collection title retained: %#v %v", page, e)
 	}
 }
+func TestArchiveMembersRemainDistinctAndIdempotent(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	if e := s.Migrate(ctx); e != nil {
+		t.Fatal(e)
+	}
+	root := library.Root{ID: "archive", Path: "/series", Label: "Series", Category: "series"}
+	if e := s.EnsureSource(ctx, root); e != nil {
+		t.Fatal(e)
+	}
+	for range 2 {
+		scan, e := s.StartScan(ctx, root.ID)
+		if e != nil {
+			t.Fatal(e)
+		}
+		for _, member := range []string{"Season 1/Show.S01E01.mkv", "Season 1/Show.S01E02.mkv"} {
+			f := library.FileObservation{SourceID: root.ID, RelativePath: "Show/season.zip", ArchiveMember: member, Storage: "zip", Group: "Show", Category: "series", Title: library.ParseTitle("Show"), Size: 100, Modified: time.Now()}
+			if e = s.Observe(ctx, scan, f); e != nil {
+				t.Fatal(e)
+			}
+		}
+		if e = s.FinishScan(ctx, scan, root.ID, library.ScanStats{ArchivedMedia: 2, Archives: 1}, nil); e != nil {
+			t.Fatal(e)
+		}
+	}
+	page, e := s.ListTitles(ctx, TitleQuery{})
+	if e != nil || page.Items[0].FileCount != 2 {
+		t.Fatal("archive identities collapsed", page, e)
+	}
+	detail, e := s.GetTitle(ctx, page.Items[0].ID)
+	if e != nil || len(detail.Files) != 2 || detail.Files[0].Storage != "zip" || detail.Files[0].ArchiveMember == detail.Files[1].ArchiveMember {
+		t.Fatal(detail, e)
+	}
+}

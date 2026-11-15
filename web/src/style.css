@@ -760,3 +760,25 @@ dd a {
     max-width: 100%;
   }
 }
+.unmatched-titles {
+  border: 1px solid var(--ts-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin: 18px 0;
+  font-size: 13px;
+}
+.unmatched-titles summary {
+  cursor: pointer;
+  color: var(--ts-muted);
+}
+.unmatched-titles ul {
+  list-style: none;
+  padding: 0;
+}
+.unmatched-titles li {
+  display: block;
+  padding: 8px 0;
+}
+.unmatched-titles a {
+  color: var(--ts-primary);
+}

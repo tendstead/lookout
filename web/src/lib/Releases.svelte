@@ -21,6 +21,7 @@
     delivery: string;
   };
   let upcoming = $state<Episode[]>([]);
+  let unmatchedTitles = $state<{ title_id: string; name: string }[]>([]);
   let recent = $state<Event[]>([]);
   let following = $state(0);
   let ready = $state(0);
@@ -45,6 +46,7 @@
       following = data.following;
       ready = data.ready;
       unmatched = data.unmatched;
+      unmatchedTitles = data.unmatched_titles || [];
       upcomingTotal = data.upcoming_total;
       recentTotal = data.recent_total;
       running = progress.running;
@@ -122,6 +124,14 @@
 {#if failed}<p class="catalogue-message" role="alert">
     {t('releaseError')}
   </p>{/if}
+{#if unmatchedTitles.length}<details class="unmatched-titles">
+    <summary>{unmatched} {t('matchNeeded')}</summary>
+    <ul>
+      {#each unmatchedTitles as title}<li>
+          <a href={'/titles/' + title.title_id}>{title.name}</a>
+        </li>{/each}
+    </ul>
+  </details>{/if}
 <section class="release-section">
   <h3>{t('upcomingEpisodes')}</h3>
   {#if !upcoming.length}<p class="metadata-note">{t('noUpcoming')}</p>{/if}

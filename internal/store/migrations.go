@@ -11,3 +11,6 @@ var catalogue string
 
 //go:embed migrations/003_metadata.sql
 var metadataSchema string
+
+//go:embed migrations/004_releases.sql
+var releaseSchema string

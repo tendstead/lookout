@@ -160,6 +160,7 @@
   <div
     class="page"
     class:gallery-page={isGallery}
+    class:overview-page={pathname === '/'}
     class:width-limited={isGallery && limitWidth}
   >
     {#if !isSystem}

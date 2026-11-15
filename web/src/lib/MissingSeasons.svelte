@@ -23,6 +23,7 @@
     try {
       const params = new URLSearchParams({
         kind,
+        group_by: 'title',
         q: search,
         limit: String(limit),
         offset: String(offset),
@@ -132,8 +133,7 @@
       )}
     </p>
   {:else}<ul class="gap-list" aria-busy={loading}>
-      {#each items as item (item.title_id + ':' + item.kind + ':' + item.season)}<li
-        >
+      {#each items as item (item.title_id + ':' + item.kind)}<li>
           <SeasonGapCard {item} {locale} />
         </li>{/each}
     </ul>{/if}
@@ -195,7 +195,7 @@
     padding: 0;
     list-style: none;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
     gap: 1rem;
     align-items: start;
   }
@@ -204,10 +204,5 @@
     padding: 0;
     border: 0;
     min-width: 0;
-  }
-  @media (max-width: 767px) {
-    .gap-list {
-      grid-template-columns: minmax(0, 1fr);
-    }
   }
 </style>

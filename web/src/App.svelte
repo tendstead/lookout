@@ -141,7 +141,7 @@
       >
     </div>
   {/snippet}
-  <div class="page">
+  <div class="page" class:release-page={isReleases}>
     {#if !isSystem}
       {#if !isSources && !isDetail && !isConnections && !isReleases}<section
           class="intro"

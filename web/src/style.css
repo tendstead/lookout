@@ -835,3 +835,61 @@ dd a {
 .unmatched-titles a {
   color: var(--ts-primary);
 }
+
+.server-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0;
+}
+.server-badge {
+  font-size: 0.72rem;
+  background: var(--ts-color-primary-container, #ece4f7);
+  color: var(--ts-color-on-surface, #292333);
+  border: 1px solid #6750a455;
+  border-radius: 5px;
+  padding: 2px 5px;
+  overflow-wrap: anywhere;
+}
+.server-badge.uncertain {
+  border-style: dashed;
+}
+.server-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+.server-filter select {
+  max-width: 100%;
+  padding: 8px;
+  border: 1px solid #8886;
+  border-radius: 8px;
+  background: var(--ts-color-surface, #fff);
+  color: inherit;
+}
+.wanted-form {
+  max-width: 650px;
+  margin-bottom: 24px;
+}
+.wanted-server {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid #8884;
+}
+.wanted-server p {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+.source-card code {
+  overflow-wrap: anywhere;
+}
+.connection-form input {
+  max-width: 100%;
+}

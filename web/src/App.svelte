@@ -8,6 +8,8 @@
   import Library from './lib/Library.svelte';
   import Connections from './lib/Connections.svelte';
   import Releases from './lib/Releases.svelte';
+  import Servers from './lib/Servers.svelte';
+  import Wanted from './lib/Wanted.svelte';
   let locale = $state<Locale>('en');
   let dark = $state(false);
   let limitWidth = $state(false);
@@ -25,6 +27,8 @@
       href: '/releases',
       icon: SystemIcon,
     },
+    { id: 'wanted', label: t('wanted'), href: '/wanted', icon: LibraryIcon },
+    { id: 'servers', label: t('servers'), href: '/servers', icon: SystemIcon },
     { id: 'sources', label: t('sources'), href: '/sources', icon: SystemIcon },
     {
       id: 'connections',
@@ -34,6 +38,8 @@
     },
     { id: 'system', label: t('system'), href: '/system', icon: SystemIcon },
   ]);
+  const isWanted = $derived(pathname === '/wanted');
+  const isServers = $derived(pathname === '/servers');
   const isSystem = $derived(pathname === '/system');
   const isSources = $derived(pathname === '/sources');
   const isConnections = $derived(pathname === '/connections');
@@ -110,17 +116,21 @@
 <AppShell
   brand="Tendstead"
   appLabel="Lookout"
-  pageTitle={isReleases
-    ? t('releases')
-    : isConnections
-      ? t('connections')
-      : isSystem
-        ? t('system')
-        : isSources
-          ? t('sources')
-          : isDetail
-            ? t('library')
-            : t('overview')}
+  pageTitle={isWanted
+    ? t('wanted')
+    : isServers
+      ? t('servers')
+      : isReleases
+        ? t('releases')
+        : isConnections
+          ? t('connections')
+          : isSystem
+            ? t('system')
+            : isSources
+              ? t('sources')
+              : isDetail
+                ? t('library')
+                : t('overview')}
   {pathname}
   {destinations}
   mobilePrimaryIds={['overview', 'releases', 'sources']}
@@ -164,14 +174,18 @@
     class:width-limited={isGallery && limitWidth}
   >
     {#if !isSystem}
-      {#if !isSources && !isDetail && !isConnections && !isReleases}<section
+      {#if !isWanted && !isServers && !isSources && !isDetail && !isConnections && !isReleases}<section
           class="intro"
         >
           <p class="eyebrow">{t('local')}</p>
           <h2>{t('headline')}</h2>
           <p class="lead">{t('intro')}</p>
         </section>{/if}
-      {#if isReleases}<Releases {locale} />{:else if isConnections}<Connections
+      {#if isWanted}<Wanted {locale} />{:else if isServers}<Servers
+          {locale}
+        />{:else if isReleases}<Releases
+          {locale}
+        />{:else if isConnections}<Connections
           {locale}
         />{:else}{#key pathname}<Library
             {locale}

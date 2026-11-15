@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Telegram from './Telegram.svelte';
+  import { type Server } from './server-types';
   import { translate, type Locale, type Key } from './i18n';
   type Mapping = {
     server_prefix: string;
@@ -9,6 +10,7 @@
   };
   type Connection = {
     id: string;
+    server_id?: string;
     kind: string;
     url: string;
     verified: boolean;
@@ -20,6 +22,8 @@
   let items = $state<Connection[]>([]);
   let sources = $state<Source[]>([]);
   let kind = $state('jellyfin');
+  let servers = $state<Server[]>([]);
+  let serverID = $state('');
   let serverURL = $state('');
   let token = $state('');
   let mappings = $state<Mapping[]>([]);
@@ -47,11 +51,13 @@
   }
   async function load() {
     try {
-      const [data, root] = await Promise.all([
+      const [data, root, hostData] = await Promise.all([
         request('/api/v1/connections'),
         request('/api/v1/sources'),
+        request('/api/v1/servers'),
       ]);
       items = data.items;
+      servers = hostData.items;
       ready = data.capabilities.connections_ready;
       publicMetadata = data.capabilities.public_metadata_enabled;
       progress = data.progress;
@@ -67,6 +73,7 @@
     try {
       await request('/api/v1/connections', {
         kind,
+        server_id: serverID || undefined,
         url: serverURL,
         token,
         path_mappings: mappings
@@ -147,6 +154,7 @@
         >
       </div>
       <p class="source-path">{item.url}</p>
+      <p>{servers.find((s) => s.id === item.server_id)?.name || ''}</p>
       {#each item.path_mappings || [] as m}<p class="source-date">
           {m.server_prefix} → {sources.find((s) => s.id === m.source_id)
             ?.label || m.source_id}
@@ -159,7 +167,7 @@
           >{t('verifyConnection')}</button
         ><button
           class="catalogue-button"
-          disabled={busy || progress.running || !item.path_mappings?.length}
+          disabled={busy || progress.running}
           onclick={() => void action(item.id, 'import')}
           >{t('importMetadata')}</button
         >
@@ -196,6 +204,14 @@
         autocomplete="new-password"
         disabled={!ready}
       /></label
+    >
+    <label
+      >{t('linkServer')}<select bind:value={serverID}
+        ><option value="">{t('newInventoryServer')}</option
+        >{#each servers as server}<option value={server.id}
+            >{server.name}</option
+          >{/each}</select
+      ></label
     >
     <p class="metadata-note">{t('tokenNote')}</p>
     <p class="metadata-note">{t('mappingNote')}</p>

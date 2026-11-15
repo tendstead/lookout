@@ -5,7 +5,11 @@
   import MetadataReview from './MetadataReview.svelte';
   import Follow from './Follow.svelte';
   import LibrarySearch from './LibrarySearch.svelte';
+  import ServerFilter from './ServerFilter.svelte';
+  import ServerBadges from './ServerBadges.svelte';
+  import { api, type Availability } from './server-types';
   type Title = {
+    servers?: Availability[];
     id: string;
     name: string;
     category: string;
@@ -20,6 +24,10 @@
     metadata_url?: string;
   };
   type FileItem = {
+    adapter?: string;
+    reported_path?: string;
+    server_id?: string;
+    server_name?: string;
     storage?: string;
     archive_member?: string;
     id: number;
@@ -53,9 +61,22 @@
   const t = (key: Key) => translate(locale, key);
   let titles = $state<Title[]>([]);
   let sources = $state<Source[]>([]);
-  let detail = $state<(Title & { files: FileItem[] }) | null>(null);
+  let detail = $state<
+    | (Title & {
+        files: FileItem[];
+        members?: {
+          id: string;
+          name: string;
+          source_id: string;
+          server_id: string;
+        }[];
+      })
+    | null
+  >(null);
   let search = $state('');
   let category = $state('');
+  let server = $state('');
+  let mergeID = $state('');
   let offset = $state(0);
   let total = $state(0);
   let loading = $state(true);
@@ -105,6 +126,7 @@
         const q = new URLSearchParams({
           q: search,
           category,
+          server,
           limit: String(limit),
           offset: String(offset),
         });
@@ -119,6 +141,28 @@
       if (current === version) error = 'libraryError';
     } finally {
       if (current === version) loading = false;
+    }
+  }
+  async function wanted() {
+    if (!detail) return;
+    try {
+      await api('/api/v1/wanted', {
+        name: detail.name,
+        category: detail.category.includes('series') ? 'series' : 'movie',
+        year: detail.year,
+        provider_ids: detail.provider_ids,
+      });
+      notice = 'wantedSaved';
+    } catch {
+      error = 'libraryError';
+    }
+  }
+  async function identity(id: string, target: string) {
+    try {
+      await api('/api/v1/titles/' + id + '/identity', { target_id: target });
+      await load();
+    } catch {
+      error = 'libraryError';
     }
   }
   async function filter(value: string) {
@@ -238,6 +282,52 @@
           titleID={detail.id}
           name={detail.name}
         />{/if}
+      <h3>{t('serverCopies')}</h3>
+      <div class="source-list">
+        {#each detail.servers || [] as host}<article class="source-card">
+            <h4>{host.name}</h4>
+            <p>
+              {t(
+                host.status === 'available'
+                  ? 'availabilityAvailable'
+                  : host.status === 'missing'
+                    ? 'availabilityMissing'
+                    : 'availabilityUncertain',
+              )} · {host.files}
+              {t('files')}
+            </p>
+            <p>{t('gapLocal')}: {host.seasons.join(', ') || '—'}</p>
+            <p class="metadata-note">
+              {t('lastScan')}: {host.last_success
+                ? new Date(host.last_success).toLocaleString(locale)
+                : t('neverScanned')}
+            </p>
+          </article>{/each}
+      </div>
+      <button class="catalogue-button" onclick={() => void wanted()}
+        >{t('addWanted')}</button
+      >
+      <details class="source-card">
+        <summary>{t('identityReview')}</summary>
+        <p>{t('identityHint')}</p>
+        <form
+          onsubmit={(e) => {
+            e.preventDefault();
+            if (detail) void identity(detail.id, mergeID);
+          }}
+        >
+          <label>{t('mergeTitle')}<input bind:value={mergeID} required /></label
+          ><button class="catalogue-button">{t('saveSettings')}</button>
+        </form>
+        {#each detail.members || [] as member}<p>
+            {member.source_id} · <code>{member.id}</code>
+            <button
+              class="text-button"
+              onclick={() => void identity(member.id, '')}
+              >{t('splitTitle')}</button
+            >
+          </p>{/each}
+      </details>
       <h3>{t('observedFiles')}</h3>
       {#if detail.files.some((f) => f.storage === 'zip')}<p
           class="metadata-note"
@@ -247,10 +337,17 @@
       <ul class="observed-files">
         {#each detail.files as file}<li>
             <div class="file-name">
-              {file.relative_path}{#if file.archive_member}!/{file.archive_member}{/if}
+              {#if file.server_name}<strong>{file.server_name}</strong> ·
+              {/if}{file.reported_path ||
+                file.relative_path}{#if file.archive_member}!/{file.archive_member}{/if}
             </div>
             <div class="file-note">
-              {#if file.storage === 'zip'}<strong>{t('archivedMedia')}</strong> ·
+              {#if file.adapter && file.adapter !== 'sftp'}<strong
+                  >{file.adapter}</strong
+                > ·
+              {/if}{#if file.storage === 'zip'}<strong
+                  >{t('archivedMedia')}</strong
+                > ·
               {/if}
               {#if file.episodes?.length}{t('season')}
                 {file.season} · {t('episode')}
@@ -274,9 +371,18 @@
         {t('files')}</span
       >
     </div>
+    <ServerFilter
+      {locale}
+      bind:value={server}
+      onchange={() => {
+        offset = 0;
+        void load();
+      }}
+    />
     <LibrarySearch
       {locale}
       {category}
+      {server}
       bind:value={search}
       onSearch={() => {
         offset = 0;
@@ -311,6 +417,7 @@
         </div>
         <div class="title-card-text">
           <h3>{title.name}</h3>
+          <ServerBadges servers={title.servers} {locale} />
           <p>
             {title.year ? title.year + ' · ' : ''}{title.file_count}
             {t('files')}

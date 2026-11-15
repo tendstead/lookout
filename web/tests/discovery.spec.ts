@@ -202,13 +202,13 @@ test('type-ahead suggests only local titles and supports keyboard selection and 
   await input.fill('Sp');
   await page.clock.fastForward(250);
   await expect(page.getByRole('option', { name: /Space Anime/ })).toBeVisible();
-  await expect(page.getByRole('option')).toHaveCount(2);
+  await expect(page.getByRole('listbox').getByRole('option')).toHaveCount(2);
   expect(queries).toEqual(['Sp']);
   await input.press('Escape');
   await expect(page.getByRole('listbox')).toHaveCount(0);
   await input.fill('Space');
   await page.clock.fastForward(250);
-  await expect(page.getByRole('option')).toHaveCount(2);
+  await expect(page.getByRole('listbox').getByRole('option')).toHaveCount(2);
   await input.press('ArrowDown');
   await input.press('Enter');
   await expect(page).toHaveURL(/\/titles\/space$/);

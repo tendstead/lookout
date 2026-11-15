@@ -84,3 +84,27 @@ cases and lifecycle checks passed again. The same 20 cases passed against the
 healthy LAN service, and the refreshed phone screenshot was visually inspected.
 The running image digest matched the tested image; all API comparison counts
 remained 45/23/84 after deployment.
+
+## Visual season cards follow-up — 2026-11-15
+
+Missing/partial seasons now use existing series posters, prominent season numbers,
+state badges, proportional aired-episode coverage and recognized local-season chips.
+Missing episode numbers expand into numbered tiles; timestamps move into Data
+freshness. Review cards preserve uncertainty and omit numerical coverage claims.
+Artwork failure keeps title links and coverage usable. No backend, comparison,
+provider-data, dependency or notification configuration changed.
+
+Browser regressions were observed failing before implementation, then passing for
+artwork identity, zero/partial coverage, episode tiles, review states, long titles,
+missing artwork, German/dark theme and narrow screens. A fresh focused review found
+no Critical/Important issue. Its keyboard-scroll finding was resolved with named,
+focusable number groups and visible focus outlines; Svelte's generic noninteractive
+focus warning is narrowly documented at these two deliberate scroll containers.
+Desktop/mobile screenshot inspection confirmed a two-column desktop grid and one
+column on phones without horizontal overflow.
+
+Final visual-card verification: Svelte/TypeScript reported zero errors/warnings;
+all 22 desktop/mobile browser cases and disposable lifecycle checks passed. The
+same 22 cases passed through the deployed LAN service. Desktop/light, desktop/dark
+and phone screenshots were inspected with actual posters; the refreshed README
+phone screenshot is readable. The healthy running image matched the tested image.

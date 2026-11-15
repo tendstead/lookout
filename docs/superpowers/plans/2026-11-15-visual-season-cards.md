@@ -11,6 +11,6 @@
 
 Never imply local season chips are complete collections. Do not infer present episode identities. Do not label series artwork as season-specific. Review items have no coverage bar. Respect dark/light themes, mobile width, missing artwork, translations and reduced motion (no animations). Keep ignored credentials and source/notification configuration untouched.
 
-- [ ] Add failing browser behavior checks for poster/title identity, accessible 0/10 and3/10 coverage, local-season chips, expandable missing-number tiles, review states and image fallback.
-- [ ] Extract typed SeasonGapCard; implement visual treatments and responsive grid; preserve search/pagination. Run types/browser/build/lifecycle checks and commit.
-- [ ] Fresh final review; fix meaningful findings. Deploy tested image, inspect actual phone and desktop cards, refresh README screenshot/docs, commit locally.
+- [x] Add failing browser behavior checks for poster/title identity, accessible 0/10 and3/10 coverage, local-season chips, expandable missing-number tiles, review states and image fallback.
+- [x] Extract typed SeasonGapCard; implement visual treatments and responsive grid; preserve search/pagination. Run types/browser/build/lifecycle checks and commit.
+- [x] Fresh final review; fix meaningful findings. Deploy tested image, inspect actual phone and desktop cards, refresh README screenshot/docs, commit locally.

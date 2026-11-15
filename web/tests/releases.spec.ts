@@ -170,6 +170,16 @@ test('missing seasons compare local inventory and keep partial and uncertain tit
   });
   await expect(art).toBeVisible();
   await expect(art).toHaveAttribute('src', '/api/v1/titles/example/artwork');
+  const missingSeasons = card.getByRole('group', {
+    name: 'Missing seasons',
+    exact: true,
+  });
+  await expect(
+    missingSeasons.getByRole('button', { name: 'Season 4', exact: true }),
+  ).toHaveText('4');
+  await expect(
+    missingSeasons.getByRole('button', { name: 'Season 4', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
   const coverage = card.getByRole('progressbar', {
     name: 'Aired episode coverage',
     exact: true,
@@ -196,6 +206,11 @@ test('missing seasons compare local inventory and keep partial and uncertain tit
     view.getByText('3 / 10 aired episodes present', { exact: true }),
   ).toBeVisible();
   await expect(coverage).toHaveAttribute('aria-valuenow', '3');
+  await expect(
+    card
+      .getByRole('group', { name: 'Partial seasons', exact: true })
+      .getByRole('button', { name: 'Season 4', exact: true }),
+  ).toHaveText('4');
   await card
     .getByText('Missing aired episode numbers (7)', { exact: true })
     .click();

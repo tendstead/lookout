@@ -216,6 +216,9 @@
           {detail.overview}
         </p>{/if}
       <p class="metadata-note">
+        {#if detail.match_status === 'review'}<strong>{t('needsReview')}</strong
+          > ·
+        {/if}
         {t('metadataSource')}: {detail.provenance === 'filename'
           ? t('unknownMetadata')
           : detail.provenance}
@@ -318,7 +321,10 @@
             {t('files')}
           </p>
           <small
-            >{title.provenance === 'filename'
+            >{#if title.match_status === 'review'}<strong
+                >{t('needsReview')}</strong
+              > ·
+            {/if}{title.provenance === 'filename'
               ? t('unknownMetadata')
               : title.provenance}</small
           >

@@ -159,54 +159,57 @@ func (s *Service) RefreshOfficial(ctx context.Context) (Report, error) {
 	}
 	r := Report{Phase: "official", Running: true}
 	s.setReport(r)
+	// Capture identities before applying metadata: display names can change page order.
+	var titles []store.Title
 	for offset := 0; ; offset += 100 {
 		page, e := s.Store.ListTitles(ctx, store.TitleQuery{Limit: 100, Offset: offset})
 		if e != nil {
 			return r, e
 		}
-		for _, title := range page.Items {
-			if title.Category != "series" && title.Category != "anime_series" {
-				continue
-			}
-			if e := ctx.Err(); e != nil {
-				return r, e
-			}
-			var candidate metadata.Candidate
-			var err error
-			if title.ProviderIDs["tvmaze"] != "" || title.ProviderIDs["tvdb"] != "" || title.ProviderIDs["imdb"] != "" {
-				candidate, err = s.TV.Lookup(ctx, title.ProviderIDs)
-			} else {
-				var results []metadata.Candidate
-				results, err = s.TV.Search(ctx, title.Name)
-				if err == nil {
-					year := 0
-					if title.Year != nil {
-						year = *title.Year
-					}
-					var exact bool
-					candidate, exact = metadata.ExactCandidate(results, title.Name, year)
-					if !exact {
-						err = errors.New("ambiguous or unmatched title")
-					}
-				}
-			}
-			if err != nil {
-				r.Unmatched++
-				s.setReport(r)
-				continue
-			}
-			if err = s.Store.ApplyMetadata(ctx, title.ID, store.MetadataUpdate{Candidate: candidate}); errors.Is(err, store.ErrMetadataConflict) {
-				r.Review++
-			} else if err != nil {
-				return r, err
-			} else {
-				r.Matched++
-			}
-			s.setReport(r)
-		}
+		titles = append(titles, page.Items...)
 		if offset+len(page.Items) >= int(page.Total) {
 			break
 		}
+	}
+	for _, title := range titles {
+		if title.Category != "series" && title.Category != "anime_series" {
+			continue
+		}
+		if e := ctx.Err(); e != nil {
+			return r, e
+		}
+		var candidate metadata.Candidate
+		var err error
+		if title.ProviderIDs["tvmaze"] != "" || title.ProviderIDs["tvdb"] != "" || title.ProviderIDs["imdb"] != "" {
+			candidate, err = s.TV.Lookup(ctx, title.ProviderIDs)
+		} else {
+			var results []metadata.Candidate
+			results, err = s.TV.Search(ctx, title.Name)
+			if err == nil {
+				year := 0
+				if title.Year != nil {
+					year = *title.Year
+				}
+				var exact bool
+				candidate, exact = metadata.ExactCandidate(results, title.Name, year)
+				if !exact {
+					err = errors.New("ambiguous or unmatched title")
+				}
+			}
+		}
+		if err != nil {
+			r.Unmatched++
+			s.setReport(r)
+			continue
+		}
+		if err = s.Store.ApplyMetadata(ctx, title.ID, store.MetadataUpdate{Candidate: candidate}); errors.Is(err, store.ErrMetadataConflict) {
+			r.Review++
+		} else if err != nil {
+			return r, err
+		} else {
+			r.Matched++
+		}
+		s.setReport(r)
 	}
 	r.Running = false
 	s.setReport(r)
@@ -292,6 +295,9 @@ func (s *Service) Image(ctx context.Context, id string) ([]byte, string, error) 
 		}
 		b, mime, e = c.Image(ctx, ref.Path)
 	} else if ref.URL != "" {
+		if !s.AllowPublic {
+			return nil, "", errors.New("public metadata lookups are disabled")
+		}
 		b, mime, e = metadata.PublicImage(ctx, ref.URL)
 	} else {
 		return nil, "", store.ErrNotFound

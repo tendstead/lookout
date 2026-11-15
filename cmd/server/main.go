@@ -77,7 +77,7 @@ func run() error {
 	}
 	telegramService := notify.New(s, telegramConfig, os.Getenv("TELEGRAM_DELIVERY_ENABLED") == "true")
 	go telegramService.Run(ctx)
-	releaseService := tracking.New(s, metadataService.TV, metadataService.AllowPublic, os.Getenv("FOLLOW_IMPORTED_SERIES") == "true", telegramService.Ready)
+	releaseService := tracking.New(s, metadataService.TV, metadataService.AllowPublic, os.Getenv("FOLLOW_IMPORTED_SERIES") == "true", telegramService.DeliveryAuthorized)
 	go releaseService.Run(ctx)
 	srv := &http.Server{Addr: cfg.ListenAddr, Handler: httpapi.NewHandler(s.Ping, frontendAssets(), httpapi.WithCatalogue(s, libraryService), httpapi.WithMetadata(metadataService), httpapi.WithReleaseTracking(releaseService, telegramService)), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
 	done := make(chan error, 1)

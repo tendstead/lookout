@@ -32,6 +32,13 @@ func New(s *store.Store, c *Config, enabled bool) *Service {
 	return n
 }
 func (s *Service) Status() Status { s.mu.Lock(); defer s.mu.Unlock(); return s.status }
+
+// DeliveryAuthorized controls whether new genuine events enter the pending outbox.
+// Temporary verification failures prevent sending, not durable event retention.
+func (s *Service) DeliveryAuthorized() bool {
+	v := s.Status()
+	return v.Configured && v.DeliveryEnabled
+}
 func (s *Service) Ready() bool {
 	v := s.Status()
 	return v.Configured && v.Verified && v.DeliveryEnabled

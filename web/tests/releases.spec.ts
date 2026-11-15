@@ -157,6 +157,14 @@ test('missing seasons compare local inventory and keep partial and uncertain tit
     exact: true,
   });
   await expect(view.getByText('Example Series', { exact: true })).toBeVisible();
+  const card = view.locator('.gap-list > li').first();
+  const cardBox = await card.boundingBox();
+  const titleBox = await view
+    .getByText('Example Series', { exact: true })
+    .boundingBox();
+  const seasonBox = await card.locator('strong').boundingBox();
+  expect(titleBox!.width).toBeGreaterThan(cardBox!.width * 0.8);
+  expect(seasonBox!.y).toBeGreaterThanOrEqual(titleBox!.y + titleBox!.height);
   await expect(
     view.getByText('Latest aired season: 4', { exact: true }),
   ).toBeVisible();

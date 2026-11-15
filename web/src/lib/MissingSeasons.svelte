@@ -265,11 +265,21 @@
     gap: 1rem;
   }
   .gap-list > li {
+    display: block;
     padding: 1rem;
     border: 1px solid var(--ts-border);
     border-radius: 0.75rem;
     overflow-wrap: anywhere;
     min-width: 0;
+  }
+  .gap-list ul {
+    padding-left: 1.25rem;
+    margin: 0.5rem 0;
+  }
+  .gap-list ul li {
+    display: list-item;
+    padding: 0.25rem 0;
+    border: 0;
   }
   .gap-list strong {
     display: block;

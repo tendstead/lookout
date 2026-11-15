@@ -10,6 +10,7 @@ import (
 )
 
 type TitleQuery struct {
+	LocalOnly        bool
 	GroupByTitle     bool
 	Search, Category string
 	Limit, Offset    int
@@ -63,11 +64,11 @@ func (s *Store) ListTitles(ctx context.Context, q TitleQuery) (TitlePage, error)
 		q.Offset = 0
 	}
 	page := TitlePage{Items: []Title{}, Limit: q.Limit, Offset: q.Offset}
-	filter := ` WHERE ($1='' OR t.name ILIKE '%'||$1||'%' OR t.group_key ILIKE '%'||$1||'%') AND ($2='' OR t.category=$2)`
-	if e := s.pool.QueryRow(ctx, "SELECT count(*) FROM library_titles t"+filter, q.Search, q.Category).Scan(&page.Total); e != nil {
+	filter := ` WHERE ($1='' OR t.name ILIKE '%'||$1||'%' OR t.group_key ILIKE '%'||$1||'%') AND ($2='' OR t.category=$2) AND (NOT $3 OR EXISTS(SELECT 1 FROM library_files local_file WHERE local_file.title_id=t.id AND local_file.observation IN('observed','stable')))`
+	if e := s.pool.QueryRow(ctx, "SELECT count(*) FROM library_titles t"+filter, q.Search, q.Category, q.LocalOnly).Scan(&page.Total); e != nil {
 		return page, e
 	}
-	rows, e := s.pool.Query(ctx, `SELECT t.id::text,t.name,t.category,t.year,t.overview,t.provider_ids,t.provenance,t.match_status,(SELECT count(*) FROM library_files f WHERE f.title_id=t.id),s.label,(t.artwork_path<>'' OR t.artwork_url<>''),t.metadata_url FROM library_titles t JOIN library_sources s ON s.id=t.source_id`+filter+` ORDER BY lower(t.name),t.id LIMIT $3 OFFSET $4`, q.Search, q.Category, q.Limit, q.Offset)
+	rows, e := s.pool.Query(ctx, `SELECT t.id::text,t.name,t.category,t.year,t.overview,t.provider_ids,t.provenance,t.match_status,(SELECT count(*) FROM library_files f WHERE f.title_id=t.id),s.label,(t.artwork_path<>'' OR t.artwork_url<>''),t.metadata_url FROM library_titles t JOIN library_sources s ON s.id=t.source_id`+filter+` ORDER BY lower(t.name),t.id LIMIT $4 OFFSET $5`, q.Search, q.Category, q.LocalOnly, q.Limit, q.Offset)
 	if e != nil {
 		return page, e
 	}

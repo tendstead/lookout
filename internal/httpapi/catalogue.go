@@ -107,6 +107,38 @@ func (o apiOptions) serveCatalogue(w http.ResponseWriter, r *http.Request) bool 
 		}
 		return true
 	}
+	if p == "/api/v1/titles/suggestions" {
+		if !readMethod(w, r) {
+			return true
+		}
+		q, e := titleQuery(r)
+		if e != nil {
+			apiError(w, 400, "invalid_query", "Invalid suggestion query")
+			return true
+		}
+		type suggestion struct {
+			ID       string `json:"id"`
+			Name     string `json:"name"`
+			Category string `json:"category"`
+			Year     *int   `json:"year,omitempty"`
+		}
+		items := []suggestion{}
+		if len([]rune(q.Search)) >= 2 {
+			q.LocalOnly = true
+			q.Limit = 8
+			q.Offset = 0
+			page, e := o.catalogue.ListTitles(r.Context(), q)
+			if e != nil {
+				apiError(w, 503, "catalogue_unavailable", "Local suggestions unavailable")
+				return true
+			}
+			for _, title := range page.Items {
+				items = append(items, suggestion{title.ID, title.Name, title.Category, title.Year})
+			}
+		}
+		jsonResponse(w, 200, map[string]any{"items": items})
+		return true
+	}
 	if strings.HasPrefix(p, "/api/v1/titles/") {
 		if !readMethod(w, r) {
 			return true

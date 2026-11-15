@@ -162,6 +162,15 @@ export const translations = {
     gapChecked: 'Schedule checked',
     gapScanned: 'Source scanned',
 
+    limitWidth: 'Limit width',
+    limitWidthHint:
+      'Keep galleries within a readable width on wide screens. Saved in this browser.',
+    localSuggestions: 'Local library suggestions',
+    searchingLocal: 'Searching your library…',
+    noLocalSuggestions: 'No local titles found.',
+    suggestionsUnavailable: 'Suggestions unavailable. You can still search.',
+    seasonPremiere: 'Season premiere',
+    upcomingEpisode: 'Upcoming episode',
     overview: 'Overview',
     system: 'System',
     headline: 'Your media, in view.',
@@ -375,6 +384,16 @@ export const translations = {
     gapChecked: 'Sendeplan geprüft',
     gapScanned: 'Quelle gescannt',
 
+    limitWidth: 'Breite begrenzen',
+    limitWidthHint:
+      'Begrenzt die Galeriebreite auf großen Bildschirmen. In diesem Browser gespeichert.',
+    localSuggestions: 'Vorschläge aus deiner Mediathek',
+    searchingLocal: 'Deine Mediathek wird durchsucht…',
+    noLocalSuggestions: 'Keine lokalen Titel gefunden.',
+    suggestionsUnavailable:
+      'Vorschläge nicht verfügbar. Die Suche funktioniert weiterhin.',
+    seasonPremiere: 'Staffelauftakt',
+    upcomingEpisode: 'Kommende Folge',
     overview: 'Übersicht',
     system: 'System',
     headline: 'Deine Medien im Blick.',

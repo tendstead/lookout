@@ -4,6 +4,7 @@
   import Icon from './Icon.svelte';
   import MetadataReview from './MetadataReview.svelte';
   import Follow from './Follow.svelte';
+  import LibrarySearch from './LibrarySearch.svelte';
   type Title = {
     id: string;
     name: string;
@@ -273,21 +274,15 @@
         {t('files')}</span
       >
     </div>
-    <form
-      class="library-search"
-      onsubmit={(e) => {
-        e.preventDefault();
+    <LibrarySearch
+      {locale}
+      {category}
+      bind:value={search}
+      onSearch={() => {
         offset = 0;
         void load();
       }}
-    >
-      <input
-        type="search"
-        aria-label={t('searchLibrary')}
-        placeholder={t('searchLibrary')}
-        bind:value={search}
-      /><button type="submit">{t('search')}</button>
-    </form>
+    />
     <div class="category-filters" role="group" aria-label={t('library')}>
       {#each categories as [id, key]}<button
           class:chosen={category === id}

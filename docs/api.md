@@ -24,7 +24,7 @@ work returns 202; a busy/disabled worker returns 409. Errors have the form
 | `/api/v1/titles/{id}/metadata` | POST | Manual identity: `{"provider":"tvmaze","id":"..."}`. |
 | `/api/v1/titles/{id}/artwork` | GET, HEAD | Bounded local image proxy/cache, ETag support. |
 | `/api/v1/releases` | GET, HEAD | `{data,progress}`: follows, unmatched titles, upcoming episodes and recent events; `limit`, `offset`. |
-| `/api/v1/releases/gaps` | GET, HEAD | `{items,total,missing,partial,review,limit,offset}`; `kind` = `missing` (default), `partial`, `review`; `q`, `category`, `limit`, `offset`. |
+| `/api/v1/releases/gaps` | GET, HEAD | `{items,total,missing,partial,review,limit,offset}`; `kind` = `missing` (default), `partial`, `review`; optional `group_by=title`; `q`, `category`, `limit`, `offset`. |
 | `/api/v1/releases/refresh` | POST | Queue schedule refresh; `{}`. |
 | `/api/v1/titles/{id}/follow` | GET, HEAD | Follow and baseline state. |
 | `/api/v1/titles/{id}/follow` | POST | `{"enabled":true}` or false. |
@@ -53,3 +53,12 @@ claim (`season`, `aired`, `present` are zero); `reasons` explains uncertainty.
 Counts `missing`/`partial` refer to seasons and `review` to titles for the current
 search/category, before kind selection and pagination. Comparisons read one
 consistent database snapshot and never create events or notifications.
+
+With `group_by=title`, filtering is followed by grouping by stable title ID before
+pagination. Each missing/partial item includes ordered `seasons` records with
+`season`, `kind`, `aired`, `present`, `missing_episodes`. Top-level `season` is zero,
+`aired`/`present` are sums over grouped seasons, and `missing_episodes` is empty
+because episode numbers are season-specific. `total` counts series cards, while
+`missing`/`partial` still count seasons and `review` still counts titles. Review
+items remain one per title. Omitting `group_by` preserves flat per-season output;
+unsupported values return 400. Titles with the same display name retain separate IDs.

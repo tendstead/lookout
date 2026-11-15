@@ -41,10 +41,24 @@ test('foundation is usable, bilingual and persists preferences', async ({
         exact: true,
       });
       await expect(gaps.getByRole('status')).toHaveCount(0);
-      const firstCard = gaps.locator('.gap-list > li').first();
-      if (await firstCard.count())
+      const multiSeason = gaps
+        .locator('.gap-list > li')
+        .filter({ has: page.locator('.season-selector') })
+        .first();
+      const firstCard = (await multiSeason.count())
+        ? multiSeason
+        : gaps.locator('.gap-list > li').first();
+      if (await firstCard.count()) {
         await firstCard.evaluate((el) => el.scrollIntoView({ block: 'start' }));
-      else await gaps.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+        await firstCard.evaluate(async (el) => {
+          const img = el.querySelector('img');
+          if (img && !img.complete)
+            await new Promise<void>((resolve) => {
+              img.addEventListener('load', () => resolve(), { once: true });
+              img.addEventListener('error', () => resolve(), { once: true });
+            });
+        });
+      } else await gaps.evaluate((el) => el.scrollIntoView({ block: 'start' }));
     }
     await page.screenshot({
       path: `../docs/screenshots/${testInfo.project.name}.png`,

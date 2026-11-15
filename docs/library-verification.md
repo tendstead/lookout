@@ -108,3 +108,25 @@ all 22 desktop/mobile browser cases and disposable lifecycle checks passed. The
 same 22 cases passed through the deployed LAN service. Desktop/light, desktop/dark
 and phone screenshots were inspected with actual posters; the refreshed README
 phone screenshot is readable. The healthy running image matched the tested image.
+
+## Grouped series cards and fluid grid — 2026-11-15
+
+The opt-in grouped endpoint and Releases UI now keep every missing/partial season
+for one stable title ID in one series card before pagination. Per-season counts
+remain unchanged: live verification reconciled 45 missing seasons into 15 series cards,
+23 partial seasons into 8 cards, and84 review titles into 84 cards. Every flat season
+identity was present exactly once in grouped output; sums, order and counts agreed.
+SpongeBob's nine missing seasons appeared in one card with individual selection.
+
+CSS Grid now automatically fits readable 340px minimum columns to the Releases
+container, including wide displays. Actual viewport checks reported 4 columns at
+1800px, 2 at 1280px, 1 at 1000px and 1 at 390px, with no horizontal overflow. Other pages
+retain their existing content-width limits. The README phone screenshot shows an
+actual grouped card.
+
+Store/API/browser regressions first reproduced the missing behavior. Full make
+check passed with 24 desktop/mobile tests, 0 Svelte/type errors or warnings, isolated
+PostgreSQL grouping/paging checks and lifecycle/audit checks. A fresh read-only
+review reported no findings. The same 24 browser cases passed on the LAN deployment;
+actual grouped phone and wide-screen cards were visually inspected. No new
+external dependency, migration or provider/notification behavior was introduced.

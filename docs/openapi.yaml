@@ -870,6 +870,17 @@
               "minimum": 0,
               "maximum": 1000000
             }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Group complete season arrays by title before pagination; total counts series, season counters remain unchanged. Omit for flat output.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "title"
+              ]
+            }
           }
         ],
         "responses": {
@@ -936,6 +947,17 @@
               "type": "integer",
               "minimum": 0,
               "maximum": 1000000
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "description": "Group complete season arrays by title before pagination; total counts series, season counters remain unchanged. Omit for flat output.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "title"
+              ]
             }
           }
         ],

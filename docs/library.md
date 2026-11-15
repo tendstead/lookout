@@ -109,13 +109,19 @@ for manual review rather than implying schedule coverage.
 
 Open Releases → **Seasons missing from your library**. Missing seasons have no
 recognized local copies of their aired numbered episodes. Partial seasons have
-some, with a list of the aired episode numbers still absent. Each poster card highlights the season number, latest aired season and an
+some, with a list of the aired episode numbers still absent. Each series gets one poster card per selected tab, with all of its missing or
+partial seasons grouped together. Select a season button inside the card to
+change the explicitly labeled coverage and missing-episode details. Each card
+highlights the season count or number, latest aired season and an
 accessible coverage bar. The poster is existing series artwork, not a claimed
 season-specific cover. Chips show recognized local season numbers, without
 implying those seasons are complete. Expand missing episode numbers to see
 individual tiles, or Data freshness for schedule-check and source-scan times.
-Cards form two columns on desktop and one on phones, with a fallback when artwork
-is unavailable. Review cards show their uncertainty reasons without a coverage bar. Search filters all three tabs; each has its own paginated results.
+Cards automatically fit as many readable columns as the available Releases width
+allows, and fall back to one width-safe column on phones. Artwork has an explicit
+fallback when unavailable. Review cards show their uncertainty reasons without a coverage bar. Search filters all three tabs; each has its own paginated series results. Seasons
+are grouped before pagination, so a series never splits across pages. Tab counters
+still count missing/partial seasons, while page totals count series cards.
 
 This comparison includes historical seasons and works independently of the quiet
 notification baseline. It compares distinct season/episode pairs, so duplicate

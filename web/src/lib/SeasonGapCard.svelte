@@ -107,7 +107,9 @@
         <summary
           >{t('gapEpisodeNumbers')} ({item.missing_episodes.length})</summary
         >
-        {#if expanded}<div
+        {#if expanded}
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex (Scrollable number groups need keyboard focus in browsers without automatic scroll-container focus.) -->
+          <div
             class="episode-tiles"
             role="group"
             tabindex="0"
@@ -123,6 +125,7 @@
       <p class="context-label">
         <Icon kind="library" size={14} />{t('gapLocal')}
       </p>
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex (Scrollable number groups need keyboard focus in browsers without automatic scroll-container focus.) -->
       <div
         class="local-seasons"
         role="group"
@@ -294,6 +297,11 @@
     overflow: auto;
     margin-top: 10px;
     padding: 2px;
+  }
+  .episode-tiles:focus-visible,
+  .local-seasons:focus-visible {
+    outline: 2px solid var(--ts-focus);
+    outline-offset: 2px;
   }
   .episode-tile {
     display: inline-grid;

@@ -4,11 +4,13 @@
   let {
     locale,
     category = '',
+    server = '',
     value = $bindable(''),
     onSearch,
   }: {
     locale: Locale;
     category?: string;
+    server?: string;
     value?: string;
     onSearch: () => void;
   } = $props();
@@ -44,6 +46,7 @@
   $effect(() => {
     const term = value.trim();
     const filter = category;
+    const host = server;
     const current = ++generation;
     controller?.abort();
     items = [];
@@ -60,7 +63,7 @@
       try {
         const response = await fetch(
           '/api/v1/titles/suggestions?' +
-            new URLSearchParams({ q: term, category: filter }),
+            new URLSearchParams({ q: term, category: filter, server: host }),
           {
             cache: 'no-store',
             signal: AbortSignal.any([

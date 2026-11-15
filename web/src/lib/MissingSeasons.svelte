@@ -3,6 +3,8 @@
   import { translate, type Locale, type Key } from './i18n';
   let { locale }: { locale: Locale } = $props();
   const t = (key: Key) => translate(locale, key);
+  import ServerFilter from './ServerFilter.svelte';
+  let server = $state('');
   import SeasonGapCard from './SeasonGapCard.svelte';
   import type { Gap, Kind } from './season-gaps';
   let kind = $state<Kind>('missing');
@@ -23,6 +25,7 @@
     try {
       const params = new URLSearchParams({
         kind,
+        server,
         group_by: 'title',
         q: search,
         limit: String(limit),
@@ -78,6 +81,14 @@
 >
   <h3 id="season-gaps-heading">{t('seasonGapsHeading')}</h3>
   <p class="metadata-note">{t('seasonGapsHint')}</p>
+  <ServerFilter
+    {locale}
+    bind:value={server}
+    onchange={() => {
+      offset = 0;
+      void load();
+    }}
+  />
   <div class="gap-tabs" aria-label={t('seasonGapsHeading')}>
     <button
       class="catalogue-button"

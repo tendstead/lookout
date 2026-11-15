@@ -41,7 +41,10 @@ test('foundation is usable, bilingual and persists preferences', async ({
         exact: true,
       });
       await expect(gaps.getByRole('status')).toHaveCount(0);
-      await gaps.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+      const firstCard = gaps.locator('.gap-list > li').first();
+      if (await firstCard.count())
+        await firstCard.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+      else await gaps.evaluate((el) => el.scrollIntoView({ block: 'start' }));
     }
     await page.screenshot({
       path: `../docs/screenshots/${testInfo.project.name}.png`,

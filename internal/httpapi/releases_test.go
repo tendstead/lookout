@@ -56,3 +56,23 @@ func TestReleaseAndReadOnlyTelegramVerificationAPI(t *testing.T) {
 		t.Fatal("unexpected follow/verify action")
 	}
 }
+
+func TestSeasonGapEndpointValidationAndResponse(t *testing.T) {
+	h := NewHandler(func(context.Context) error { return nil }, nil, WithReleaseTracking(&releaseFixture{}, nil))
+	for _, tc := range []struct {
+		path string
+		code int
+	}{{"/api/v1/releases/gaps", 200}, {"/api/v1/releases/gaps?kind=partial&q=Show&limit=1&offset=1", 200}, {"/api/v1/releases/gaps?kind=review", 200}, {"/api/v1/releases/gaps?kind=anything", 400}, {"/api/v1/releases/gaps?limit=101", 400}} {
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest("GET", tc.path, nil))
+		if w.Code != tc.code {
+			t.Fatalf("%s: %d %s", tc.path, w.Code, w.Body.String())
+		}
+		if tc.code == 200 && !strings.Contains(w.Body.String(), `"latest_aired_season":4`) {
+			t.Fatal("missing comparison contract", w.Body.String())
+		}
+	}
+}
+func (f *releaseFixture) Gaps(context.Context, store.TitleQuery, string) (store.SeasonGapPage, error) {
+	return store.SeasonGapPage{Items: []store.SeasonGap{{TitleID: "show", LatestAired: 4}}}, nil
+}

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import MissingSeasons from './MissingSeasons.svelte';
   import { translate, type Locale, type Key } from './i18n';
   let { locale }: { locale: Locale } = $props();
   const t = (key: Key) => translate(locale, key);
@@ -132,6 +133,7 @@
         </li>{/each}
     </ul>
   </details>{/if}
+<MissingSeasons {locale} />
 <section class="release-section">
   <h3>{t('upcomingEpisodes')}</h3>
   {#if !upcoming.length}<p class="metadata-note">{t('noUpcoming')}</p>{/if}

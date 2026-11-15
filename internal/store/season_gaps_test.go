@@ -20,6 +20,9 @@ func TestSeasonGapsUseCurrentScheduleAndObservedNumbering(t *testing.T) {
 	if _, e := s.pool.Exec(ctx, `UPDATE library_files SET season=1,episodes='{1}',numbering='season_episode',storage='zip',archive_member='Show.S01E01.mkv' WHERE title_id=$1`, id); e != nil {
 		t.Fatal(e)
 	}
+	if _, e := s.pool.Exec(ctx, `INSERT INTO library_files(source_id,title_id,relative_path,size,modified_at,season,episodes,numbering,last_scan,observation) SELECT source_id,title_id,relative_path||'.copy',size,modified_at,season,episodes,numbering,last_scan,observation FROM library_files WHERE title_id=$1`, id); e != nil {
+		t.Fatal(e)
+	}
 	if _, e := s.pool.Exec(ctx, `UPDATE library_sources SET status='ready',last_success=$1`, now); e != nil {
 		t.Fatal(e)
 	}
@@ -44,6 +47,20 @@ func TestSeasonGapsUseCurrentScheduleAndObservedNumbering(t *testing.T) {
 	page, e = s.SeasonGaps(ctx, q, "partial", now)
 	if e != nil || page.Total != 1 || page.Items[0].Present != 1 || page.Items[0].Aired != 2 || len(page.Items[0].MissingEpisodes) != 1 || page.Items[0].MissingEpisodes[0] != 2 {
 		t.Fatalf("partial page: %+v %v", page, e)
+	}
+	page, e = s.SeasonGaps(ctx, TitleQuery{Limit: 1, Offset: 1}, "missing", now)
+	if e != nil || page.Total != 1 || len(page.Items) != 0 || page.Missing != 1 {
+		t.Fatalf("pagination totals: %+v %v", page, e)
+	}
+	if _, e = s.pool.Exec(ctx, `UPDATE library_sources SET last_success=$1`, now.Add(-4*time.Hour)); e != nil {
+		t.Fatal(e)
+	}
+	page, e = s.SeasonGaps(ctx, q, "review", now)
+	if e != nil || page.Review != 1 || len(page.Items[0].Reasons) != 1 || page.Items[0].Reasons[0] != "inventory_unavailable" {
+		t.Fatalf("stale source asserted gaps: %+v %v", page, e)
+	}
+	if _, e = s.pool.Exec(ctx, `UPDATE library_sources SET last_success=$1`, now); e != nil {
+		t.Fatal(e)
 	}
 	// Unknown numbering might contain the missing season; suppress definitive gaps.
 	if _, e = s.pool.Exec(ctx, `UPDATE library_files SET numbering='unknown' WHERE title_id=$1`, id); e != nil {

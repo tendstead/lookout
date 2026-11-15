@@ -128,6 +128,36 @@ export const translations = {
     fileMissing: 'Not seen recently',
     fileUnconfirmed: 'Absence unconfirmed',
 
+    seasonGapsHeading: 'Seasons missing from your library',
+    seasonGapsHint:
+      'Compare already aired TVmaze episodes with explicit local season/episode numbers. Includes seasons released before tracking started; specials and future episodes are excluded.',
+    gapMissingTab: 'Missing seasons',
+    gapPartialTab: 'Partial seasons',
+    gapReviewTab: 'Needs review',
+    gapSearch: 'Search missing seasons',
+    gapMissing: 'Missing season',
+    gapPartial: 'Partial season',
+    gapLatest: 'Latest aired season',
+    gapLocal: 'Local seasons',
+    gapNoLocal: 'None recognized',
+    gapPresent: 'aired episodes present',
+    gapEpisodeNumbers: 'Missing aired episode numbers',
+    gapNoMissing: 'No missing seasons found in the comparable series.',
+    gapNoPartial: 'No partial seasons found in the comparable series.',
+    gapNoReview: 'No matching series need review.',
+    gapError: 'Could not compare seasons. Try again.',
+    gapStaleness:
+      'Based on cached schedules and the latest source scan. Aired counts may grow while a season is running. Needs review contains titles that cannot be compared reliably.',
+    gapScheduleReason: 'No current matched episode schedule is available.',
+    gapInventoryReason:
+      'The source scan is incomplete, unavailable or older than three hours.',
+    gapMetadataReason: 'Conflicting metadata needs review.',
+    gapAnimeReason: 'Anime season ordering needs verification.',
+    gapNumberingReason: 'Some local files have unknown episode numbering.',
+    gapFilesReason: 'Some local files were not confirmed by the latest scan.',
+    gapChecked: 'Schedule checked',
+    gapScanned: 'Source scanned',
+
     overview: 'Overview',
     system: 'System',
     headline: 'Your media, in view.',
@@ -303,6 +333,39 @@ export const translations = {
     fileStable: 'Größe und Datum unverändert',
     fileMissing: 'Zuletzt nicht gefunden',
     fileUnconfirmed: 'Fehlen unbestätigt',
+
+    seasonGapsHeading: 'Fehlende Staffeln in deiner Mediathek',
+    seasonGapsHint:
+      'Bereits ausgestrahlte TVmaze-Folgen werden mit eindeutigen lokalen Staffel-/Folgennummern verglichen. Auch ältere Staffeln werden berücksichtigt; Specials und zukünftige Folgen sind ausgeschlossen.',
+    gapMissingTab: 'Fehlende Staffeln',
+    gapPartialTab: 'Unvollständige Staffeln',
+    gapReviewTab: 'Zu prüfen',
+    gapSearch: 'Fehlende Staffeln suchen',
+    gapMissing: 'Fehlende Staffel',
+    gapPartial: 'Unvollständige Staffel',
+    gapLatest: 'Neueste ausgestrahlte Staffel',
+    gapLocal: 'Lokale Staffeln',
+    gapNoLocal: 'Keine erkannt',
+    gapPresent: 'ausgestrahlte Folgen vorhanden',
+    gapEpisodeNumbers: 'Fehlende ausgestrahlte Folgennummern',
+    gapNoMissing:
+      'Keine fehlenden Staffeln bei den vergleichbaren Serien gefunden.',
+    gapNoPartial:
+      'Keine unvollständigen Staffeln bei den vergleichbaren Serien gefunden.',
+    gapNoReview: 'Keine passenden Serien müssen geprüft werden.',
+    gapError: 'Staffeln konnten nicht verglichen werden. Versuche es erneut.',
+    gapStaleness:
+      'Grundlage sind zwischengespeicherte Sendepläne und der letzte Quellscan. Bei laufenden Staffeln kann die Zahl ausgestrahlter Folgen steigen. Nicht verlässlich vergleichbare Titel stehen unter „Zu prüfen“.',
+    gapScheduleReason: 'Kein aktueller, zugeordneter Folgenplan verfügbar.',
+    gapInventoryReason:
+      'Der Quellscan ist unvollständig, nicht verfügbar oder älter als drei Stunden.',
+    gapMetadataReason: 'Widersprüchliche Metadaten müssen geprüft werden.',
+    gapAnimeReason: 'Die Staffelreihenfolge des Anime muss geprüft werden.',
+    gapNumberingReason: 'Einige lokale Dateien haben unbekannte Folgennummern.',
+    gapFilesReason:
+      'Einige lokale Dateien wurden beim letzten Scan nicht bestätigt.',
+    gapChecked: 'Sendeplan geprüft',
+    gapScanned: 'Quelle gescannt',
 
     overview: 'Übersicht',
     system: 'System',

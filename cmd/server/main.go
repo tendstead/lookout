@@ -79,7 +79,7 @@ func run() error {
 	go telegramService.Run(ctx)
 	releaseService := tracking.New(s, metadataService.TV, metadataService.AllowPublic, os.Getenv("FOLLOW_IMPORTED_SERIES") == "true", telegramService.Ready)
 	go releaseService.Run(ctx)
-	srv := &http.Server{Addr: cfg.ListenAddr, Handler: httpapi.NewHandler(s.Ping, frontendAssets(), httpapi.WithCatalogue(s, libraryService), httpapi.WithMetadata(metadataService)), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
+	srv := &http.Server{Addr: cfg.ListenAddr, Handler: httpapi.NewHandler(s.Ping, frontendAssets(), httpapi.WithCatalogue(s, libraryService), httpapi.WithMetadata(metadataService), httpapi.WithReleaseTracking(releaseService, telegramService)), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
 	done := make(chan error, 1)
 	go func() { done <- srv.ListenAndServe() }()
 	log.Print("Lookout listening on ", cfg.ListenAddr)

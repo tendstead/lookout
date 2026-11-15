@@ -29,10 +29,10 @@ test('foundation is usable, bilingual and persists preferences', async ({
   await expect(page.getByTestId('database-status')).toHaveText('Connected');
   if (process.env.UPDATE_SCREENSHOTS === '1') {
     if (testInfo.project.name === 'mobile') {
-      await page
-        .getByRole('link', { name: 'System', exact: true })
-        .filter({ visible: true })
-        .click();
+      await page.goto('/releases');
+      await expect(
+        page.getByRole('heading', { name: 'Upcoming episodes', exact: true }),
+      ).toBeVisible();
     }
     await page.screenshot({
       path: `../docs/screenshots/${testInfo.project.name}.png`,
@@ -72,7 +72,6 @@ test('shell controls and navigation follow the selected language', async ({
     await expect(
       page.getByRole('button', { name: 'Menü schließen' }),
     ).toBeVisible();
-    await page.getByRole('button', { name: 'Menü schließen' }).click();
   }
   await page
     .getByRole('link', { name: 'System', exact: true })

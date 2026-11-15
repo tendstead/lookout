@@ -82,6 +82,11 @@ test('catalogue browsing searches, filters and opens observed files', async ({
       },
     }),
   );
+  await page.route('**/api/v1/titles/anime-id/follow', (route) =>
+    route.fulfill({
+      json: { enabled: false, initialized: false, provider_id: '9' },
+    }),
+  );
   await page.goto('/');
   await expect(page.getByRole('link', { name: /Space Anime/ })).toBeVisible();
   await page.getByRole('searchbox', { name: 'Search library' }).fill('Space');

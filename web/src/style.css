@@ -687,3 +687,76 @@ dd a {
     height: auto;
   }
 }
+.release-section {
+  margin: 28px 0;
+}
+.release-section h3 {
+  font-size: 17px;
+  margin: 0 0 12px;
+}
+.release-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.release-list li {
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+.release-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ts-text);
+  text-decoration: none;
+}
+.release-title:hover {
+  text-decoration: underline;
+}
+.release-list p {
+  margin: 6px 0;
+  font-size: 13px;
+}
+.release-list small {
+  font-size: 11px;
+  color: var(--ts-muted);
+}
+.release-date {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--ts-muted);
+  flex-shrink: 0;
+}
+.release-date a {
+  color: var(--ts-primary);
+  font-size: 11px;
+}
+.release-kind {
+  display: inline-block;
+  border-radius: 5px;
+  background: var(--ts-selection);
+  color: var(--ts-on-selection);
+  font-size: 10px;
+  padding: 3px 7px;
+  margin-bottom: 8px;
+}
+.follow-controls {
+  margin: 20px 0;
+}
+@media (max-width: 767px) {
+  .release-list li {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .release-date {
+    align-items: flex-start;
+    text-align: left;
+  }
+  .release-list li > div {
+    max-width: 100%;
+  }
+}

@@ -3,6 +3,7 @@
   import { translate, type Locale, type Key } from './i18n';
   import Icon from './Icon.svelte';
   import MetadataReview from './MetadataReview.svelte';
+  import Follow from './Follow.svelte';
   type Title = {
     id: string;
     name: string;
@@ -223,7 +224,10 @@
           <a href={detail.metadata_url} target="_blank" rel="noreferrer"
             >{t('providerAttribution')} ↗</a
           >
-        </p>{/if}{#if detail.category === 'series' || detail.category === 'anime_series'}<MetadataReview
+        </p>{/if}{#if detail.category === 'series' || detail.category === 'anime_series'}<Follow
+          {locale}
+          titleID={detail.id}
+        /><MetadataReview
           {locale}
           titleID={detail.id}
           name={detail.name}

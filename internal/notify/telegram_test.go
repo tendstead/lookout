@@ -57,3 +57,16 @@ func TestTelegramMessageAndErrorsUseMockOnly(t *testing.T) {
 		t.Fatal("error exposed credential", e)
 	}
 }
+
+func TestAuthorizedDeliveryIsRetainedBeforeVerification(t *testing.T) {
+	service := New(nil, &Config{Token: "123:fixture", ChatID: "2"}, true)
+	if service.Ready() {
+		t.Fatal("unverified bot may not send")
+	}
+	if !service.DeliveryAuthorized() {
+		t.Fatal("startup verification must not suppress genuine future events")
+	}
+	if New(nil, nil, true).DeliveryAuthorized() || New(nil, &Config{}, false).DeliveryAuthorized() {
+		t.Fatal("unconfigured or disabled delivery was authorized")
+	}
+}

@@ -20,12 +20,8 @@
     item.kind === 'review'
       ? 'gapReviewTab'
       : item.kind === 'missing'
-        ? seasons.length > 1
-          ? 'gapMissingTab'
-          : 'gapMissing'
-        : seasons.length > 1
-          ? 'gapPartialTab'
-          : 'gapPartial',
+        ? 'gapMissingTab'
+        : 'gapPartialTab',
   );
   const reasons: Record<string, Key> = {
     schedule_unavailable: 'gapScheduleReason',
@@ -68,20 +64,6 @@
       <a class="release-title card-title" href={'/titles/' + item.title_id}
         >{item.title}</a
       >
-      {#if item.kind !== 'review'}
-        {#if seasons.length > 1}<p class="season-number season-count">
-            <strong>{seasons.length}</strong><span
-              >{t(
-                item.kind === 'missing' ? 'gapMissingTab' : 'gapPartialTab',
-              )}</span
-            >
-          </p>
-        {:else}<p class="season-number">
-            <span>{t('season')}</span><strong
-              >{current.season.toString().padStart(2, '0')}</strong
-            >
-          </p>{/if}
-      {/if}
       {#if item.latest_aired_season > 0}<p class="latest-season">
           {t('gapLatest')}: {item.latest_aired_season}
         </p>{/if}
@@ -95,23 +77,29 @@
           </li>{/each}
       </ul>
     {:else}
-      {#if seasons.length > 1}<div
-          class="season-selector"
-          role="group"
-          aria-label={t(
-            item.kind === 'missing' ? 'gapMissingTab' : 'gapPartialTab',
-          )}
-        >
-          {#each seasons as season}<button
-              class:chosen={current.season === season.season}
-              aria-pressed={current.season === season.season}
-              onclick={() => {
-                selectedSeason = season.season;
-                expanded = false;
-              }}>{t('season')} {season.season}</button
-            >{/each}
-        </div>
-        <p class="selected-season">{t('season')} {current.season}</p>{/if}
+      <p class="context-label">
+        <Icon kind="library" size={14} />{t(
+          item.kind === 'missing' ? 'gapMissingTab' : 'gapPartialTab',
+        )}
+      </p>
+      <div
+        class="season-selector"
+        role="group"
+        aria-label={t(
+          item.kind === 'missing' ? 'gapMissingTab' : 'gapPartialTab',
+        )}
+      >
+        {#each seasons as season}<button
+            class:chosen={current.season === season.season}
+            aria-label={t('season') + ' ' + season.season}
+            aria-pressed={current.season === season.season}
+            onclick={() => {
+              selectedSeason = season.season;
+              expanded = false;
+            }}>{season.season}</button
+          >{/each}
+      </div>
+      <p class="selected-season">{t('season')} {current.season}</p>
       {#key current.season}
         <div class="coverage">
           <p class="coverage-copy">
@@ -267,29 +255,6 @@
     margin: 10px 0 0;
     text-wrap: pretty;
   }
-  .season-number {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    margin: 8px 0 0;
-    line-height: 1;
-  }
-  .season-number span {
-    font-size: 12px;
-    color: var(--ts-muted);
-  }
-  .season-number strong {
-    font-size: 34px;
-    font-weight: 650;
-    letter-spacing: -1px;
-    color: var(--ts-primary);
-  }
-  .season-count {
-    align-items: center;
-  }
-  .season-count span {
-    line-height: 1.4;
-  }
   .season-selector {
     display: flex;
     flex-wrap: wrap;
@@ -298,8 +263,9 @@
   }
   .season-selector button {
     font-size: 11px;
-    min-height: 32px;
-    padding: 5px 8px;
+    min-width: 30px;
+    min-height: 30px;
+    padding: 4px 6px;
     border: 1px solid var(--ts-border);
     border-radius: 6px;
     background: var(--ts-surface);

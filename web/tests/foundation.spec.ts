@@ -43,7 +43,7 @@ test('foundation is usable, bilingual and persists preferences', async ({
       await expect(gaps.getByRole('status')).toHaveCount(0);
       const multiSeason = gaps
         .locator('.gap-list > li')
-        .filter({ has: page.locator('.season-selector') })
+        .filter({ has: page.locator('.season-selector button:nth-child(2)') })
         .first();
       const firstCard = (await multiSeason.count())
         ? multiSeason

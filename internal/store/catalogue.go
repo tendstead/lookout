@@ -46,6 +46,10 @@ func (s *Store) StartScan(ctx context.Context, source string) (string, error) {
 	return id, tx.Commit(ctx)
 }
 func (s *Store) Observe(ctx context.Context, scan string, f library.FileObservation) error {
+	storage := f.Storage
+	if storage == "" {
+		storage = "file"
+	}
 	ids := f.Title.ProviderIDs
 	if ids == nil {
 		ids = map[string]string{}
@@ -77,10 +81,10 @@ func (s *Store) Observe(ctx context.Context, scan string, f library.FileObservat
 	if e != nil {
 		return e
 	}
-	_, e = tx.Exec(ctx, `INSERT INTO library_files(source_id,title_id,relative_path,size,modified_at,season,episodes,numbering,episode_title,last_scan)
- VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(source_id,relative_path) DO UPDATE SET title_id=excluded.title_id,size=excluded.size,modified_at=excluded.modified_at,
+	_, e = tx.Exec(ctx, `INSERT INTO library_files(source_id,title_id,relative_path,size,modified_at,season,episodes,numbering,episode_title,last_scan,storage,archive_member)
+ VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(source_id,relative_path,archive_member) DO UPDATE SET title_id=excluded.title_id,size=excluded.size,modified_at=excluded.modified_at,
  season=excluded.season,episodes=excluded.episodes,numbering=excluded.numbering,episode_title=excluded.episode_title,last_seen=now(),last_scan=excluded.last_scan,
- observation=CASE WHEN library_files.size=excluded.size AND library_files.modified_at=excluded.modified_at THEN 'stable' ELSE 'observed' END,absent_scans=0`, f.SourceID, title, f.RelativePath, f.Size, f.Modified, season, episodes, f.Numbering, f.EpisodeTitle, scan)
+ observation=CASE WHEN library_files.size=excluded.size AND library_files.modified_at=excluded.modified_at THEN 'stable' ELSE 'observed' END,absent_scans=0`, f.SourceID, title, f.RelativePath, f.Size, f.Modified, season, episodes, f.Numbering, f.EpisodeTitle, scan, storage, f.ArchiveMember)
 	if e != nil {
 		return e
 	}
@@ -112,7 +116,7 @@ func (s *Store) FinishScan(ctx context.Context, scan, source string, stats libra
 	if e = tx.QueryRow(ctx, "SELECT file_count FROM library_sources WHERE id=$1 FOR UPDATE", source).Scan(&previous); e != nil {
 		return e
 	}
-	if scanErr == nil && previous > 0 && int64(stats.Media)*10 < previous*8 {
+	if scanErr == nil && previous > 0 && int64(stats.Media+stats.ArchivedMedia)*10 < previous*8 {
 		status = "review"
 		scanStatus = "review"
 		message = "Large or empty inventory change requires review; known files retained"

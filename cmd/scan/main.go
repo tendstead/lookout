@@ -58,6 +58,7 @@ func run(configFile, output string) error {
 		}
 		summary[root.ID] = stats
 		fmt.Printf("%s: %d media, %d directories, %d sidecars, %d warnings\n", root.ID, stats.Media, stats.Directories, stats.Sidecars, stats.Warnings)
+		fmt.Printf("%s: %d archived media entries in %d ZIP containers\n", root.ID, stats.ArchivedMedia, stats.Archives)
 	}
 	result, err := json.MarshalIndent(summary, "", "  ")
 	if err != nil {

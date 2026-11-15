@@ -14,3 +14,6 @@ var metadataSchema string
 
 //go:embed migrations/004_releases.sql
 var releaseSchema string
+
+//go:embed migrations/005_archive_members.sql
+var archiveSchema string

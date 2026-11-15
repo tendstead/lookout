@@ -124,15 +124,16 @@ type ReleaseEvent struct {
 	Delivery   string    `json:"delivery"`
 }
 type ReleaseOverview struct {
-	Upcoming      []UpcomingEpisode `json:"upcoming"`
-	Recent        []ReleaseEvent    `json:"recent"`
-	Following     int               `json:"following"`
-	Ready         int               `json:"ready"`
-	Unmatched     int               `json:"unmatched"`
-	UpcomingTotal int               `json:"upcoming_total"`
-	RecentTotal   int               `json:"recent_total"`
-	Limit         int               `json:"limit"`
-	Offset        int               `json:"offset"`
+	UnmatchedTitles []Follow          `json:"unmatched_titles"`
+	Upcoming        []UpcomingEpisode `json:"upcoming"`
+	Recent          []ReleaseEvent    `json:"recent"`
+	Following       int               `json:"following"`
+	Ready           int               `json:"ready"`
+	Unmatched       int               `json:"unmatched"`
+	UpcomingTotal   int               `json:"upcoming_total"`
+	RecentTotal     int               `json:"recent_total"`
+	Limit           int               `json:"limit"`
+	Offset          int               `json:"offset"`
 }
 
 func (s *Store) ReleaseOverview(ctx context.Context, now time.Time, limit, offset int) (ReleaseOverview, error) {
@@ -146,6 +147,24 @@ func (s *Store) ReleaseOverview(ctx context.Context, now time.Time, limit, offse
 	e := s.pool.QueryRow(ctx, "SELECT count(*),count(*) FILTER(WHERE initialized),count(*) FILTER(WHERE provider_id='') FROM release_follows WHERE enabled").Scan(&v.Following, &v.Ready, &v.Unmatched)
 	if e != nil {
 		return v, e
+	}
+	unmatchedRows, err := s.pool.Query(ctx, "SELECT "+followColumns+" FROM release_follows f JOIN library_titles t ON t.id=f.title_id WHERE f.enabled AND f.provider_id='' ORDER BY t.name LIMIT 50")
+	if err != nil {
+		return v, err
+	}
+	v.UnmatchedTitles = []Follow{}
+	for unmatchedRows.Next() {
+		f, err := readFollow(unmatchedRows)
+		if err != nil {
+			unmatchedRows.Close()
+			return v, err
+		}
+		v.UnmatchedTitles = append(v.UnmatchedTitles, f)
+	}
+	err = unmatchedRows.Err()
+	unmatchedRows.Close()
+	if err != nil {
+		return v, err
 	}
 	filter := ` FROM provider_episodes p JOIN release_follows f ON f.title_id=p.title_id AND f.provider_id=p.show_id JOIN library_titles t ON t.id=p.title_id WHERE f.enabled AND p.active AND p.scheduled_at>$1`
 	if e = s.pool.QueryRow(ctx, "SELECT count(*)"+filter, now).Scan(&v.UpcomingTotal); e != nil {

@@ -133,6 +133,26 @@ func Scan(ctx context.Context, r Reader, root Root, emit func(FileObservation) e
 				}
 				continue
 			}
+			if entry.Mode().IsRegular() && strings.EqualFold(path.Ext(n), ".zip") {
+				members, err := InspectZIP(ctx, r, p, entry.Size())
+				if err != nil {
+					return fmt.Errorf("archive directory inspection incomplete: %w", err)
+				}
+				stats.Archives++
+				for _, member := range members {
+					s, eps := ParseNumbering(path.Base(member.Name), path.Base(path.Dir(member.Name)))
+					numbering := "unknown"
+					if len(eps) > 0 {
+						numbering = "season_episode"
+					}
+					observation := FileObservation{SourceID: root.ID, RelativePath: strings.TrimPrefix(p, root.Path+"/"), Group: childGroup, Category: root.Category, Size: member.Size, Modified: entry.ModTime().UTC(), Title: childSeed, Season: s, Episodes: eps, Numbering: numbering, Storage: "zip", ArchiveMember: member.Name}
+					if err = emit(observation); err != nil {
+						return err
+					}
+					stats.ArchivedMedia++
+				}
+				continue
+			}
 			if !entry.Mode().IsRegular() || !IsMedia(n) {
 				continue
 			}

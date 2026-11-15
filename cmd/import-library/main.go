@@ -102,7 +102,7 @@ func run(cfgFile, manifest string) error {
 		return e
 	}
 	for _, root := range sources.Roots {
-		if stats[root.ID].Media != summaries[root.ID].Media {
+		if stats[root.ID].Media != summaries[root.ID].Media+summaries[root.ID].ArchivedMedia {
 			return errors.New("manifest count disagrees with completed summary")
 		}
 		if e = s.FinishScan(ctx, scans[root.ID], root.ID, summaries[root.ID], nil); e != nil {

@@ -66,7 +66,9 @@ func (o apiOptions) serveReleases(w http.ResponseWriter, r *http.Request) bool {
 		if kind == "" {
 			kind = "missing"
 		}
-		if e != nil || (kind != "missing" && kind != "partial" && kind != "review") {
+		groupBy := r.URL.Query().Get("group_by")
+		q.GroupByTitle = groupBy == "title"
+		if e != nil || (kind != "missing" && kind != "partial" && kind != "review") || (groupBy != "" && groupBy != "title") {
 			apiError(w, 400, "invalid_query", "Invalid season comparison query")
 			return true
 		}

@@ -8,9 +8,13 @@ import (
 	"testing"
 )
 
-type catalogueFixture struct{ queued int }
+type catalogueFixture struct {
+	queued int
+	query  store.TitleQuery
+}
 
 func (f *catalogueFixture) ListTitles(_ context.Context, q store.TitleQuery) (store.TitlePage, error) {
+	f.query = q
 	return store.TitlePage{Items: []store.Title{{ID: "title-1", Name: "Example", FileCount: 4}}, Total: 1, Limit: q.Limit}, nil
 }
 func (f *catalogueFixture) GetTitle(_ context.Context, id string) (store.TitleDetail, error) {
@@ -64,5 +68,27 @@ func TestCatalogueAPI(t *testing.T) {
 	}
 	if f.queued != 1 {
 		t.Fatal("unexpected scan execution")
+	}
+}
+
+func TestSuggestionsAreBoundedLocalCatalogueLookups(t *testing.T) {
+	f := &catalogueFixture{}
+	h := NewHandler(func(context.Context) error { return nil }, nil, WithCatalogue(f, f))
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/titles/suggestions?q=Example&category=movie&limit=100", nil))
+	if w.Code != 200 || !f.query.LocalOnly || f.query.Limit != 8 || f.query.Search != "Example" || f.query.Category != "movie" || !strings.Contains(w.Body.String(), "Example") {
+		t.Fatalf("not a bounded local lookup: %d %+v %s", w.Code, f.query, w.Body.String())
+	}
+	for _, path := range []string{"/api/v1/titles/suggestions?q=x", "/api/v1/titles/suggestions?q="} {
+		w = httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+		if w.Code != 200 || !strings.Contains(w.Body.String(), `"items":[]`) {
+			t.Fatal("short query should be empty", w.Code, w.Body.String())
+		}
+	}
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/titles/suggestions?q=Example&category=invalid", nil))
+	if w.Code != 400 {
+		t.Fatal("invalid query accepted", w.Code)
 	}
 }

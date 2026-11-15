@@ -6,17 +6,26 @@
   const t = (key: Key) => translate(locale, key);
   let artworkFailed = $state(false);
   let expanded = $state(false);
+  let selectedSeason = $state<number | null>(null);
+  const seasons = $derived(item.seasons?.length ? item.seasons : [item]);
+  const current = $derived(
+    seasons.find((season) => season.season === selectedSeason) ?? seasons[0],
+  );
   const percent = $derived(
-    item.aired > 0
-      ? Math.max(0, Math.min(100, (100 * item.present) / item.aired))
+    current.aired > 0
+      ? Math.max(0, Math.min(100, (100 * current.present) / current.aired))
       : 0,
   );
   const stateLabel = $derived(
     item.kind === 'review'
       ? 'gapReviewTab'
       : item.kind === 'missing'
-        ? 'gapMissing'
-        : 'gapPartial',
+        ? seasons.length > 1
+          ? 'gapMissingTab'
+          : 'gapMissing'
+        : seasons.length > 1
+          ? 'gapPartialTab'
+          : 'gapPartial',
   );
   const reasons: Record<string, Key> = {
     schedule_unavailable: 'gapScheduleReason',
@@ -59,11 +68,20 @@
       <a class="release-title card-title" href={'/titles/' + item.title_id}
         >{item.title}</a
       >
-      {#if item.kind !== 'review'}<p class="season-number">
-          <span>{t('season')}</span><strong
-            >{item.season.toString().padStart(2, '0')}</strong
-          >
-        </p>{/if}
+      {#if item.kind !== 'review'}
+        {#if seasons.length > 1}<p class="season-number season-count">
+            <strong>{seasons.length}</strong><span
+              >{t(
+                item.kind === 'missing' ? 'gapMissingTab' : 'gapPartialTab',
+              )}</span
+            >
+          </p>
+        {:else}<p class="season-number">
+            <span>{t('season')}</span><strong
+              >{current.season.toString().padStart(2, '0')}</strong
+            >
+          </p>{/if}
+      {/if}
       {#if item.latest_aired_season > 0}<p class="latest-season">
           {t('gapLatest')}: {item.latest_aired_season}
         </p>{/if}
@@ -77,49 +95,69 @@
           </li>{/each}
       </ul>
     {:else}
-      <div class="coverage">
-        <p class="coverage-copy">
-          <span>{item.present} / {item.aired} {t('gapPresent')}</span><span
-            class="coverage-percent"
-            aria-hidden="true">{Math.round(percent)}%</span
-          >
-        </p>
-        <div
-          class="coverage-track"
-          role="progressbar"
-          aria-label={t('gapCoverage')}
-          aria-valuemin="0"
-          aria-valuemax={item.aired}
-          aria-valuenow={item.present}
-          aria-valuetext={item.present +
-            ' / ' +
-            item.aired +
-            ' ' +
-            t('gapPresent')}
+      {#if seasons.length > 1}<div
+          class="season-selector"
+          role="group"
+          aria-label={t(
+            item.kind === 'missing' ? 'gapMissingTab' : 'gapPartialTab',
+          )}
         >
-          <span style:width={percent + '%'}></span>
+          {#each seasons as season}<button
+              class:chosen={current.season === season.season}
+              aria-pressed={current.season === season.season}
+              onclick={() => {
+                selectedSeason = season.season;
+                expanded = false;
+              }}>{t('season')} {season.season}</button
+            >{/each}
         </div>
-      </div>
-      <details
-        class="episode-details"
-        ontoggle={(event) => (expanded = event.currentTarget.open)}
-      >
-        <summary
-          >{t('gapEpisodeNumbers')} ({item.missing_episodes.length})</summary
-        >
-        {#if expanded}
-          <!-- svelte-ignore a11y_no_noninteractive_tabindex (Scrollable number groups need keyboard focus in browsers without automatic scroll-container focus.) -->
+        <p class="selected-season">{t('season')} {current.season}</p>{/if}
+      {#key current.season}
+        <div class="coverage">
+          <p class="coverage-copy">
+            <span>{current.present} / {current.aired} {t('gapPresent')}</span
+            ><span class="coverage-percent" aria-hidden="true"
+              >{Math.round(percent)}%</span
+            >
+          </p>
           <div
-            class="episode-tiles"
-            role="group"
-            tabindex="0"
-            aria-label={t('gapEpisodeNumbers')}
+            class="coverage-track"
+            role="progressbar"
+            aria-label={t('gapCoverage')}
+            aria-valuemin="0"
+            aria-valuemax={current.aired}
+            aria-valuenow={current.present}
+            aria-valuetext={current.present +
+              ' / ' +
+              current.aired +
+              ' ' +
+              t('gapPresent')}
           >
-            {#each item.missing_episodes as number}<span class="episode-tile"
-                >{number}</span
-              >{/each}
-          </div>{/if}
-      </details>
+            <span style:width={percent + '%'}></span>
+          </div>
+        </div>
+        <details
+          class="episode-details"
+          ontoggle={(event) => (expanded = event.currentTarget.open)}
+        >
+          <summary
+            >{t('gapEpisodeNumbers')} ({current.missing_episodes
+              .length})</summary
+          >
+          {#if expanded}
+            <!-- svelte-ignore a11y_no_noninteractive_tabindex (Scrollable number groups need keyboard focus in browsers without automatic scroll-container focus.) -->
+            <div
+              class="episode-tiles"
+              role="group"
+              tabindex="0"
+              aria-label={t('gapEpisodeNumbers')}
+            >
+              {#each current.missing_episodes as number}<span
+                  class="episode-tile">{number}</span
+                >{/each}
+            </div>{/if}
+        </details>
+      {/key}
     {/if}
     <div class="local-context">
       <p class="context-label">
@@ -245,6 +283,38 @@
     font-weight: 650;
     letter-spacing: -1px;
     color: var(--ts-primary);
+  }
+  .season-count {
+    align-items: center;
+  }
+  .season-count span {
+    line-height: 1.4;
+  }
+  .season-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .season-selector button {
+    font-size: 11px;
+    min-height: 32px;
+    padding: 5px 8px;
+    border: 1px solid var(--ts-border);
+    border-radius: 6px;
+    background: var(--ts-surface);
+    color: var(--ts-text);
+    cursor: pointer;
+  }
+  .season-selector button.chosen {
+    background: var(--ts-selection);
+    border-color: var(--ts-primary);
+    color: var(--ts-on-selection);
+  }
+  .selected-season {
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0 0 8px;
   }
   .latest-season {
     font-size: 10px;

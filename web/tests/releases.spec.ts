@@ -376,3 +376,120 @@ test('season artwork failure keeps visual coverage and title usable', async ({
     ),
   ).toBe(true);
 });
+
+test('series cards merge seasons and reflow as the same window is resized', async ({
+  page,
+}) => {
+  let latestOnly = false;
+  await page.route('**/api/v1/releases/gaps?*', (route) => {
+    const grouped =
+      new URL(route.request().url()).searchParams.get('group_by') === 'title';
+    const seasons = (latestOnly ? [9] : [2, 3, 4, 5, 6, 7, 8, 9]).map(
+      (season) => ({
+        season,
+        kind: 'missing',
+        aired: season === 9 ? 7 : 10,
+        present: 0,
+        missing_episodes:
+          season === 9
+            ? [1, 2, 3, 4, 5, 6, 7]
+            : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      }),
+    );
+    const common = {
+      title: 'SpongeBob SquarePants',
+      title_id: 'sponge',
+      category: 'series',
+      kind: 'missing',
+      latest_aired_season: 9,
+      local_seasons: [1],
+      reasons: [],
+      checked_at: null,
+      inventory_at: null,
+    };
+    const items = grouped
+      ? [
+          {
+            ...common,
+            season: 0,
+            aired: 77,
+            present: 0,
+            missing_episodes: [],
+            seasons,
+          },
+        ]
+      : seasons.map((season) => ({ ...common, ...season }));
+    const more = Array.from({ length: 5 }, (_, i) => ({
+      ...common,
+      ...seasons[0],
+      title_id: 'other-' + i,
+      title: 'Other series ' + i,
+      ...(grouped ? { season: 0, seasons: [seasons[0]] } : {}),
+    }));
+    return route.fulfill({
+      json: {
+        items: [...items, ...more],
+        total: grouped ? 6 : 13,
+        missing: 13,
+        partial: 0,
+        review: 0,
+        limit: 48,
+        offset: 0,
+      },
+    });
+  });
+  await page.route('**/api/v1/titles/*/artwork', (route) =>
+    route.fulfill({ status: 404, body: 'No artwork' }),
+  );
+  await page.clock.install();
+  await page.goto('/releases');
+  const view = page.getByRole('region', {
+    name: 'Seasons missing from your library',
+    exact: true,
+  });
+  await expect(
+    view.getByRole('link', { name: 'SpongeBob SquarePants', exact: true }),
+  ).toHaveCount(1);
+  const card = view.locator('.gap-list > li').first();
+  await expect(
+    card.getByRole('button', { name: 'Season 9', exact: true }),
+  ).toBeVisible();
+  await card.getByRole('button', { name: 'Season 9', exact: true }).click();
+  await expect(card.getByRole('progressbar')).toHaveAttribute(
+    'aria-valuemax',
+    '7',
+  );
+  await card.getByRole('button', { name: 'Season 2', exact: true }).click();
+  await expect(card.getByRole('progressbar')).toHaveAttribute(
+    'aria-valuemax',
+    '10',
+  );
+  latestOnly = true;
+  await page.clock.fastForward(30100);
+  await expect(card.getByRole('progressbar')).toHaveAttribute(
+    'aria-valuemax',
+    '7',
+  );
+  const columns: number[] = [];
+  for (const width of [1800, 1280, 1000, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    const first = view.locator('.gap-list > li').first();
+    await first.scrollIntoViewIfNeeded();
+    const count = await view.locator('.gap-list > li').evaluateAll((nodes) => {
+      const first = nodes[0].getBoundingClientRect();
+      return nodes.filter(
+        (n) => Math.abs(n.getBoundingClientRect().top - first.top) < 2,
+      ).length;
+    });
+    columns.push(count);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+  expect(columns[0]).toBeGreaterThanOrEqual(3);
+  expect(columns[1]).toBe(2);
+  expect(columns[2]).toBe(1);
+  expect(columns[3]).toBe(1);
+});

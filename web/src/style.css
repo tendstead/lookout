@@ -27,6 +27,13 @@ a:focus-visible {
   max-width: 880px;
   margin: 0 auto;
 }
+.page.release-page {
+  max-width: none;
+  width: 100%;
+}
+.ts-page-content:has(.release-page) {
+  max-width: none;
+}
 .intro {
   margin: 2px 0 28px;
 }

@@ -213,6 +213,18 @@ test('missing seasons compare local inventory and keep partial and uncertain tit
       })
       .getByText('4', { exact: true }),
   ).toBeVisible();
+  const episodeTiles = card.getByRole('group', {
+    name: 'Missing aired episode numbers',
+    exact: true,
+  });
+  await episodeTiles.focus();
+  await expect(episodeTiles).toBeFocused();
+  const localChips = card.getByRole('group', {
+    name: 'Local seasons: 1, 2, 3',
+    exact: true,
+  });
+  await localChips.focus();
+  await expect(localChips).toBeFocused();
   await view.getByRole('button', { name: /Needs review/ }).click();
   await expect(
     view.getByText('Uncertain Anime', { exact: true }),

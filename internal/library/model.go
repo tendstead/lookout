@@ -9,6 +9,7 @@ import (
 )
 
 type Root struct {
+	ServerID string `json:"server_id,omitempty"`
 	ID       string `json:"id"`
 	Label    string `json:"label"`
 	Path     string `json:"path"`

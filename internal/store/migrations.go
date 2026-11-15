@@ -17,3 +17,9 @@ var releaseSchema string
 
 //go:embed migrations/005_archive_members.sql
 var archiveSchema string
+
+//go:embed migrations/006_servers.sql
+var serverSchema string
+
+//go:embed migrations/007_wanted.sql
+var wantedSchema string

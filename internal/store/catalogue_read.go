@@ -13,9 +13,19 @@ type TitleQuery struct {
 	LocalOnly        bool
 	GroupByTitle     bool
 	Search, Category string
+	ServerID         string
 	Limit, Offset    int
 }
+type Availability struct {
+	ServerID    string     `json:"server_id"`
+	Name        string     `json:"name"`
+	Status      string     `json:"status"`
+	LastSuccess *time.Time `json:"last_success"`
+	Files       int64      `json:"files"`
+	Seasons     []int      `json:"seasons"`
+}
 type Title struct {
+	Servers     []Availability    `json:"servers"`
 	HasArtwork  bool              `json:"has_artwork"`
 	MetadataURL string            `json:"metadata_url,omitempty"`
 	ID          string            `json:"id"`
@@ -36,6 +46,11 @@ type TitlePage struct {
 	Offset int     `json:"offset"`
 }
 type MediaFile struct {
+	Adapter       string    `json:"adapter"`
+	ReportedPath  string    `json:"reported_path,omitempty"`
+	ServerID      string    `json:"server_id"`
+	ServerName    string    `json:"server_name"`
+	SourceID      string    `json:"source_id"`
 	Storage       string    `json:"storage"`
 	ArchiveMember string    `json:"archive_member,omitempty"`
 	ID            int64     `json:"id"`
@@ -50,8 +65,21 @@ type MediaFile struct {
 }
 type TitleDetail struct {
 	Title
-	Files []MediaFile `json:"files"`
+	Files   []MediaFile   `json:"files"`
+	Members []TitleMember `json:"members"`
 }
+
+type TitleMember struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	SourceID string `json:"source_id"`
+	ServerID string `json:"server_id"`
+}
+
+const titleColumns = `t.id::text,t.name,t.category,t.year,t.overview,t.provider_ids,t.provenance,t.match_status,
+ (SELECT count(*) FROM library_files f JOIN title_identity i ON i.id=f.title_id WHERE i.canonical_id=t.id),s.label,
+ (t.artwork_path<>'' OR t.artwork_url<>''),t.metadata_url`
+const titleFrom = ` FROM library_titles t JOIN library_sources s ON s.id=t.source_id WHERE t.canonical_id IS NULL`
 
 func (s *Store) ListTitles(ctx context.Context, q TitleQuery) (TitlePage, error) {
 	if q.Limit <= 0 {
@@ -64,23 +92,37 @@ func (s *Store) ListTitles(ctx context.Context, q TitleQuery) (TitlePage, error)
 		q.Offset = 0
 	}
 	page := TitlePage{Items: []Title{}, Limit: q.Limit, Offset: q.Offset}
-	filter := ` WHERE ($1='' OR t.name ILIKE '%'||$1||'%' OR t.group_key ILIKE '%'||$1||'%') AND ($2='' OR t.category=$2) AND (NOT $3 OR EXISTS(SELECT 1 FROM library_files local_file WHERE local_file.title_id=t.id AND local_file.observation IN('observed','stable')))`
-	if e := s.pool.QueryRow(ctx, "SELECT count(*) FROM library_titles t"+filter, q.Search, q.Category, q.LocalOnly).Scan(&page.Total); e != nil {
+	filter := ` AND ($1='' OR t.name ILIKE '%'||$1||'%' OR EXISTS(SELECT 1 FROM library_titles member JOIN title_identity mi ON mi.id=member.id WHERE mi.canonical_id=t.id AND member.group_key ILIKE '%'||$1||'%')) AND ($2='' OR t.category=$2)
+ AND (NOT $3 OR EXISTS(SELECT 1 FROM library_files f JOIN title_identity i ON i.id=f.title_id JOIN library_sources fs ON fs.id=f.source_id WHERE i.canonical_id=t.id AND f.observation IN('observed','stable') AND ($4='' OR fs.server_id=$4)))
+ AND ($4='' OR EXISTS(SELECT 1 FROM library_titles member JOIN title_identity mi ON mi.id=member.id JOIN library_sources ms ON ms.id=member.source_id WHERE mi.canonical_id=t.id AND ms.server_id=$4))`
+	args := []any{q.Search, q.Category, q.LocalOnly, q.ServerID}
+	if e := s.pool.QueryRow(ctx, `SELECT count(*)`+titleFrom+filter, args...).Scan(&page.Total); e != nil {
 		return page, e
 	}
-	rows, e := s.pool.Query(ctx, `SELECT t.id::text,t.name,t.category,t.year,t.overview,t.provider_ids,t.provenance,t.match_status,(SELECT count(*) FROM library_files f WHERE f.title_id=t.id),s.label,(t.artwork_path<>'' OR t.artwork_url<>''),t.metadata_url FROM library_titles t JOIN library_sources s ON s.id=t.source_id`+filter+` ORDER BY lower(t.name),t.id LIMIT $4 OFFSET $5`, q.Search, q.Category, q.LocalOnly, q.Limit, q.Offset)
+	rows, e := s.pool.Query(ctx, `SELECT `+titleColumns+titleFrom+filter+` ORDER BY lower(t.name),t.id LIMIT $5 OFFSET $6`, append(args, q.Limit, q.Offset)...)
 	if e != nil {
 		return page, e
 	}
-	defer rows.Close()
 	for rows.Next() {
 		v, e := readTitle(rows)
 		if e != nil {
+			rows.Close()
 			return page, e
 		}
 		page.Items = append(page.Items, v)
 	}
-	return page, rows.Err()
+	e = rows.Err()
+	rows.Close()
+	if e != nil {
+		return page, e
+	}
+	for i := range page.Items {
+		page.Items[i].Servers, e = s.TitleAvailability(ctx, page.Items[i].ID, q.ServerID)
+		if e != nil {
+			return page, e
+		}
+	}
+	return page, nil
 }
 func readTitle(row pgx.Row) (Title, error) {
 	var v Title
@@ -95,27 +137,69 @@ func readTitle(row pgx.Row) (Title, error) {
 var ErrNotFound = errors.New("not found")
 
 func (s *Store) GetTitle(ctx context.Context, id string) (TitleDetail, error) {
-	var out TitleDetail
-	v, e := readTitle(s.pool.QueryRow(ctx, `SELECT t.id::text,t.name,t.category,t.year,t.overview,t.provider_ids,t.provenance,t.match_status,(SELECT count(*) FROM library_files f WHERE f.title_id=t.id),s.label,(t.artwork_path<>'' OR t.artwork_url<>''),t.metadata_url FROM library_titles t JOIN library_sources s ON s.id=t.source_id WHERE t.id::text=$1`, id))
-	if errors.Is(e, pgx.ErrNoRows) {
-		return out, ErrNotFound
-	}
+	out := TitleDetail{Files: []MediaFile{}, Members: []TitleMember{}}
+	canonical, e := s.CanonicalID(ctx, id)
 	if e != nil {
 		return out, e
 	}
-	out.Title = v
-	out.Files = []MediaFile{}
-	rows, e := s.pool.Query(ctx, `SELECT id,relative_path,size,modified_at,season,episodes,numbering,episode_title,observation,storage,archive_member FROM library_files WHERE title_id=$1 ORDER BY season NULLS LAST,relative_path`, v.ID)
+	out.Title, e = readTitle(s.pool.QueryRow(ctx, `SELECT `+titleColumns+titleFrom+` AND t.id::text=$1`, canonical))
+	if e != nil {
+		return out, e
+	}
+	out.Servers, e = s.TitleAvailability(ctx, canonical, "")
+	if e != nil {
+		return out, e
+	}
+	rows, e := s.pool.Query(ctx, `SELECT f.id,f.relative_path,f.size,f.modified_at,f.season,f.episodes,f.numbering,f.episode_title,f.observation,f.storage,f.archive_member,ls.server_id,v.name,f.source_id,ls.adapter,f.reported_path FROM library_files f JOIN title_identity i ON i.id=f.title_id JOIN library_sources ls ON ls.id=f.source_id JOIN library_servers v ON v.id=ls.server_id WHERE i.canonical_id::text=$1 ORDER BY v.name,f.season NULLS LAST,f.relative_path`, canonical)
+	if e != nil {
+		return out, e
+	}
+	for rows.Next() {
+		var f MediaFile
+		if e = rows.Scan(&f.ID, &f.RelativePath, &f.Size, &f.Modified, &f.Season, &f.Episodes, &f.Numbering, &f.EpisodeTitle, &f.Observation, &f.Storage, &f.ArchiveMember, &f.ServerID, &f.ServerName, &f.SourceID, &f.Adapter, &f.ReportedPath); e != nil {
+			rows.Close()
+			return out, e
+		}
+		out.Files = append(out.Files, f)
+	}
+	e = rows.Err()
+	rows.Close()
+	if e != nil {
+		return out, e
+	}
+	rows, e = s.pool.Query(ctx, `SELECT t.id::text,t.name,t.source_id,ls.server_id FROM library_titles t JOIN title_identity i ON i.id=t.id JOIN library_sources ls ON ls.id=t.source_id WHERE i.canonical_id::text=$1 ORDER BY t.created_at,t.id`, canonical)
 	if e != nil {
 		return out, e
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var f MediaFile
-		if e = rows.Scan(&f.ID, &f.RelativePath, &f.Size, &f.Modified, &f.Season, &f.Episodes, &f.Numbering, &f.EpisodeTitle, &f.Observation, &f.Storage, &f.ArchiveMember); e != nil {
+		var m TitleMember
+		if e = rows.Scan(&m.ID, &m.Name, &m.SourceID, &m.ServerID); e != nil {
 			return out, e
 		}
-		out.Files = append(out.Files, f)
+		out.Members = append(out.Members, m)
+	}
+	return out, rows.Err()
+}
+func (s *Store) TitleAvailability(ctx context.Context, id, server string) ([]Availability, error) {
+	rows, e := s.pool.Query(ctx, `SELECT v.id,v.name,
+ CASE WHEN bool_or(ls.status IN('error','review','interrupted') OR ls.last_success IS NULL OR ls.last_success<now()-make_interval(hours=>v.stale_hours)) THEN 'uncertain'
+ WHEN count(f.id) FILTER(WHERE f.observation IN('observed','stable'))>0 THEN 'available'
+ WHEN count(f.id) FILTER(WHERE f.observation='unconfirmed')>0 THEN 'uncertain' ELSE 'missing' END,
+ min(ls.last_success),count(DISTINCT f.id) FILTER(WHERE f.observation IN('observed','stable')),
+ COALESCE(array_agg(DISTINCT f.season ORDER BY f.season) FILTER(WHERE f.season IS NOT NULL AND f.observation IN('observed','stable')),'{}')
+ FROM library_titles t JOIN title_identity i ON i.id=t.id JOIN library_sources ls ON ls.id=t.source_id JOIN library_servers v ON v.id=ls.server_id LEFT JOIN library_files f ON f.title_id=t.id WHERE i.canonical_id::text=$1 AND ($2='' OR v.id=$2) GROUP BY v.id ORDER BY lower(v.name),v.id`, id, server)
+	if e != nil {
+		return nil, e
+	}
+	defer rows.Close()
+	out := []Availability{}
+	for rows.Next() {
+		var v Availability
+		if e = rows.Scan(&v.ServerID, &v.Name, &v.Status, &v.LastSuccess, &v.Files, &v.Seasons); e != nil {
+			return nil, e
+		}
+		out = append(out, v)
 	}
 	return out, rows.Err()
 }

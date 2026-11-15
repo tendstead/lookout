@@ -29,6 +29,8 @@ type Service struct {
 	mu          sync.Mutex
 	report      Report
 	queue       chan string
+	inventoryMu sync.Mutex
+	active      map[string]bool
 }
 
 func New(s *store.Store, key []byte) *Service {
@@ -94,6 +96,20 @@ func (s *Service) validateMappings(ctx context.Context, c metadata.MediaServer) 
 	return nil
 }
 func (s *Service) ImportConnection(ctx context.Context, id string) (Report, error) {
+	s.inventoryMu.Lock()
+	if s.active == nil {
+		s.active = map[string]bool{}
+	}
+	if s.active[id] {
+		s.inventoryMu.Unlock()
+		return Report{}, errors.New("inventory already running")
+	}
+	s.active[id] = true
+	s.inventoryMu.Unlock()
+	defer func() { s.inventoryMu.Lock(); delete(s.active, id); s.inventoryMu.Unlock() }()
+	if e := s.Store.ConnectionImportStarted(ctx, id); e != nil {
+		return Report{}, e
+	}
 	r := Report{Phase: "media-server", Running: true}
 	s.setReport(r)
 	c, e := s.Store.ConnectionConfig(ctx, id, s.Key)
@@ -108,6 +124,9 @@ func (s *Service) ImportConnection(ctx context.Context, id string) (Report, erro
 		return r, e
 	}
 	_ = s.Store.ConnectionVerified(ctx, id, true)
+	if len(c.Mappings) == 0 {
+		return s.ImportInventory(ctx, id, c)
+	}
 	matched := map[string]bool{}
 	e = c.Titles(ctx, func(item metadata.ServerItem) error {
 		found := false
@@ -149,6 +168,12 @@ func (s *Service) ImportConnection(ctx context.Context, id string) (Report, erro
 		s.setReport(r)
 		return nil
 	})
+	if e == nil {
+		e = s.Store.ReconcileIdentities(ctx)
+		if e == nil {
+			e = s.Store.ConnectionImportFinished(ctx, id)
+		}
+	}
 	r.Running = false
 	s.setReport(r)
 	return r, e

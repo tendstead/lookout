@@ -52,9 +52,9 @@ func (s *Store) SeasonGaps(ctx context.Context, q TitleQuery, kind string, now t
 		return out, e
 	}
 	defer tx.Rollback(ctx)
-	filter := ` t.category IN('series','anime_series') AND ($1='' OR t.name ILIKE '%'||$1||'%' OR t.group_key ILIKE '%'||$1||'%') AND ($2='' OR t.category=$2)`
-	args := []any{q.Search, q.Category}
-	rows, e := tx.Query(ctx, `SELECT t.id::text,t.name,t.category,t.match_status='review',COALESCE(f.initialized AND f.provider_id=COALESCE(t.provider_ids->>'tvmaze','') AND f.provider_id<>'',false),s.status='ready' AND COALESCE(s.last_success>$3::timestamptz-interval '3 hours',false),f.checked_at,s.last_success FROM library_titles t JOIN library_sources s ON s.id=t.source_id LEFT JOIN release_follows f ON f.title_id=t.id WHERE `+filter, append(args, now)...)
+	filter := ` t.canonical_id IS NULL AND t.category IN('series','anime_series') AND ($1='' OR t.name ILIKE '%'||$1||'%' OR t.group_key ILIKE '%'||$1||'%') AND ($2='' OR t.category=$2)`
+	args := []any{q.Search, q.Category, q.ServerID}
+	rows, e := tx.Query(ctx, `SELECT t.id::text,t.name,t.category,t.match_status='review',COALESCE(f.initialized AND f.provider_id=COALESCE(t.provider_ids->>'tvmaze','') AND f.provider_id<>'',false),COALESCE((SELECT bool_and(xs.status IN('ready','scanning') AND xs.last_success IS NOT NULL AND xs.last_success>$4::timestamptz-make_interval(hours=>v.stale_hours)) FROM library_sources xs JOIN library_servers v ON v.id=xs.server_id WHERE xs.category IN('series','anime_series') AND ($3='' OR xs.server_id=$3)),false),f.checked_at,(SELECT min(xs.last_success) FROM library_sources xs WHERE xs.category IN('series','anime_series') AND ($3='' OR xs.server_id=$3)) FROM library_titles t JOIN library_sources s ON s.id=t.source_id LEFT JOIN release_follows f ON f.title_id=t.id WHERE `+filter, append(args, now)...)
 	if e != nil {
 		return out, e
 	}
@@ -74,7 +74,7 @@ func (s *Store) SeasonGaps(ctx context.Context, q TitleQuery, kind string, now t
 		return out, e
 	}
 	// Aggregate episode numbers across copies and archive members before transfer.
-	rows, e = tx.Query(ctx, `SELECT f.title_id::text,COALESCE(f.season,-1),f.numbering,f.observation,COALESCE(array_agg(DISTINCT n) FILTER(WHERE n IS NOT NULL),'{}') FROM library_files f JOIN library_titles t ON t.id=f.title_id LEFT JOIN LATERAL unnest(f.episodes) n ON true WHERE `+filter+` GROUP BY f.title_id,f.season,f.numbering,f.observation`, args...)
+	rows, e = tx.Query(ctx, `SELECT i.canonical_id::text,COALESCE(f.season,-1),f.numbering,f.observation,COALESCE(array_agg(DISTINCT n) FILTER(WHERE n IS NOT NULL),'{}') FROM library_files f JOIN title_identity i ON i.id=f.title_id JOIN library_titles t ON t.id=i.canonical_id JOIN library_sources fs ON fs.id=f.source_id LEFT JOIN LATERAL unnest(f.episodes) n ON true WHERE `+filter+` AND ($3='' OR fs.server_id=$3) GROUP BY i.canonical_id,f.season,f.numbering,f.observation`, args...)
 	if e != nil {
 		return out, e
 	}
@@ -95,7 +95,7 @@ func (s *Store) SeasonGaps(ctx context.Context, q TitleQuery, kind string, now t
 		return out, e
 	}
 	// scheduled_at already applies the shared conservative date-only policy.
-	rows, e = tx.Query(ctx, `SELECT p.title_id::text,p.season,p.number,p.scheduled_at FROM provider_episodes p JOIN library_titles t ON t.id=p.title_id WHERE `+filter+` AND p.active AND p.show_id=COALESCE(t.provider_ids->>'tvmaze','') AND p.scheduled_at<=$3 AND p.season>0 AND p.number>0`, append(args, now)...)
+	rows, e = tx.Query(ctx, `SELECT p.title_id::text,p.season,p.number,p.scheduled_at FROM provider_episodes p JOIN library_titles t ON t.id=p.title_id WHERE `+filter+` AND ($3='' OR EXISTS(SELECT 1 FROM library_sources scope WHERE scope.server_id=$3 AND scope.category IN('series','anime_series'))) AND p.active AND p.show_id=COALESCE(t.provider_ids->>'tvmaze','') AND p.scheduled_at<=$4 AND p.season>0 AND p.number>0`, append(args, now)...)
 	if e != nil {
 		return out, e
 	}

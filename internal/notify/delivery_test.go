@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tendstead/lookout/internal/config"
@@ -14,6 +15,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -82,10 +84,18 @@ func TestGenuineEventDeliveryOnceUsesMockServer(t *testing.T) {
 		t.Fatal(e)
 	}
 	var calls atomic.Int32
+	var lastMessage atomic.Value
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/bot123:fixture/sendMessage" {
 			t.Error("unexpected method")
 		}
+		var body struct {
+			Text string `json:"text"`
+		}
+		if e := json.NewDecoder(r.Body).Decode(&body); e != nil {
+			t.Error(e)
+		}
+		lastMessage.Store(body.Text)
 		calls.Add(1)
 		w.Write([]byte(`{"ok":true,"result":{"message_id":1}}`))
 	}))
@@ -99,4 +109,38 @@ func TestGenuineEventDeliveryOnceUsesMockServer(t *testing.T) {
 	if calls.Load() != 1 {
 		t.Fatalf("duplicate delivery: %d", calls.Load())
 	}
+	// A genuine Wanted arrival names the logical server and uses the same mock.
+	if e = s.SaveServer(ctx, store.Server{ID: "legacy", Name: "Family NAS", ScanHours: 6, StaleHours: 24}); e != nil {
+		t.Fatal(e)
+	}
+	root = library.Root{ID: "wanted-films", Path: "/wanted-fixture", Category: "movie"}
+	if e = s.EnsureSource(ctx, root); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = s.AddWanted(ctx, store.Wanted{Name: "Wanted Film", Category: "movie", ProviderIDs: map[string]string{"imdb": "tt123"}}); e != nil {
+		t.Fatal(e)
+	}
+	scan, e = s.StartScan(ctx, root.ID)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = s.Observe(ctx, scan, library.FileObservation{SourceID: root.ID, RelativePath: "wanted.mkv", Group: "wanted", Category: "movie", Title: library.Metadata{Title: "Wanted Film", ProviderIDs: map[string]string{"imdb": "tt123"}}}); e != nil {
+		t.Fatal(e)
+	}
+	if e = s.FinishScan(ctx, scan, root.ID, library.ScanStats{Media: 1}, nil); e != nil {
+		t.Fatal(e)
+	}
+	if e = s.RefreshWanted(ctx, true); e != nil {
+		t.Fatal(e)
+	}
+	for range 2 {
+		if e = service.DeliverOne(ctx, time.Now().Add(time.Hour)); e != nil {
+			t.Fatal(e)
+		}
+	}
+	message, _ := lastMessage.Load().(string)
+	if calls.Load() != 2 || !strings.Contains(message, "Added on Family NAS") || !strings.Contains(message, "Wanted Film") {
+		t.Fatalf("wrong Wanted notification: %q (%d)", message, calls.Load())
+	}
+
 }

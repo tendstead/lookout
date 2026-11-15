@@ -19,7 +19,10 @@ type Source struct {
 }
 
 func (s *Store) EnsureSource(ctx context.Context, root library.Root) error {
-	_, e := s.pool.Exec(ctx, `INSERT INTO library_sources(id,label,root_path,category) VALUES($1,$2,$3,$4) ON CONFLICT(id) DO UPDATE SET label=excluded.label WHERE library_sources.root_path=excluded.root_path AND library_sources.category=excluded.category`, root.ID, root.Label, root.Path, root.Category)
+	if root.ServerID == "" {
+		root.ServerID = "legacy"
+	}
+	_, e := s.pool.Exec(ctx, `INSERT INTO library_sources(id,label,root_path,category,server_id) VALUES($1,$2,$3,$4,$5) ON CONFLICT(id) DO UPDATE SET label=excluded.label WHERE library_sources.root_path=excluded.root_path AND library_sources.category=excluded.category`, root.ID, root.Label, root.Path, root.Category, root.ServerID)
 	return e
 }
 func (s *Store) StartScan(ctx context.Context, source string) (string, error) {
@@ -148,7 +151,7 @@ func (s *Store) RecoverScans(ctx context.Context) error {
 	return e
 }
 func (s *Store) ListSources(ctx context.Context) ([]Source, error) {
-	rows, e := s.pool.Query(ctx, `SELECT s.id,s.label,s.root_path,s.category,s.status,s.last_success,s.last_error,s.file_count,s.stats FROM library_sources s ORDER BY s.label`)
+	rows, e := s.pool.Query(ctx, `SELECT s.id,s.label,s.root_path,s.category,s.server_id,s.status,s.last_success,s.last_error,s.file_count,s.stats FROM library_sources s ORDER BY s.label`)
 	if e != nil {
 		return nil, e
 	}
@@ -157,7 +160,7 @@ func (s *Store) ListSources(ctx context.Context) ([]Source, error) {
 	for rows.Next() {
 		var v Source
 		var raw []byte
-		if e = rows.Scan(&v.ID, &v.Label, &v.Path, &v.Category, &v.Status, &v.LastSuccess, &v.LastError, &v.FileCount, &raw); e != nil {
+		if e = rows.Scan(&v.ID, &v.Label, &v.Path, &v.Category, &v.ServerID, &v.Status, &v.LastSuccess, &v.LastError, &v.FileCount, &raw); e != nil {
 			return nil, e
 		}
 		_ = json.Unmarshal(raw, &v.Stats)

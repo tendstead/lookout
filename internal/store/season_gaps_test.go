@@ -53,7 +53,7 @@ func TestSeasonGapsUseCurrentScheduleAndObservedNumbering(t *testing.T) {
 	if e != nil || page.Total != 1 || len(page.Items) != 0 || page.Missing != 1 {
 		t.Fatalf("pagination totals: %+v %v", page, e)
 	}
-	if _, e = s.pool.Exec(ctx, `UPDATE library_sources SET last_success=$1`, now.Add(-4*time.Hour)); e != nil {
+	if _, e = s.pool.Exec(ctx, `UPDATE library_sources SET last_success=$1`, now.Add(-25*time.Hour)); e != nil {
 		t.Fatal(e)
 	}
 	page, e = s.SeasonGaps(ctx, q, "review", now)

@@ -46,7 +46,7 @@ func NewHandler(checkReady func(context.Context) error, assets fs.FS, options ..
 		if isAPI && opts.serveMetadata(w, r) {
 			return
 		}
-		if isAPI && opts.serveCatalogue(w, r) {
+		if isAPI && (opts.serveMultiServer(w, r) || opts.serveCatalogue(w, r)) {
 			return
 		}
 		if isAPI && r.URL.Path != "/api/v1/status" {

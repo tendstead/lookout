@@ -144,11 +144,11 @@ func (s *Store) ReleaseOverview(ctx context.Context, now time.Time, limit, offse
 		offset = 0
 	}
 	v := ReleaseOverview{Upcoming: []UpcomingEpisode{}, Recent: []ReleaseEvent{}, Limit: limit, Offset: offset}
-	e := s.pool.QueryRow(ctx, "SELECT count(*),count(*) FILTER(WHERE initialized),count(*) FILTER(WHERE provider_id='') FROM release_follows WHERE enabled").Scan(&v.Following, &v.Ready, &v.Unmatched)
+	e := s.pool.QueryRow(ctx, "SELECT count(*),count(*) FILTER(WHERE initialized),count(*) FILTER(WHERE provider_id='') FROM release_follows f JOIN library_titles t ON t.id=f.title_id WHERE f.enabled AND t.canonical_id IS NULL").Scan(&v.Following, &v.Ready, &v.Unmatched)
 	if e != nil {
 		return v, e
 	}
-	unmatchedRows, err := s.pool.Query(ctx, "SELECT "+followColumns+" FROM release_follows f JOIN library_titles t ON t.id=f.title_id WHERE f.enabled AND f.provider_id='' ORDER BY t.name LIMIT 50")
+	unmatchedRows, err := s.pool.Query(ctx, "SELECT "+followColumns+" FROM release_follows f JOIN library_titles t ON t.id=f.title_id WHERE t.canonical_id IS NULL AND f.enabled AND f.provider_id='' ORDER BY t.name LIMIT 50")
 	if err != nil {
 		return v, err
 	}
@@ -166,7 +166,7 @@ func (s *Store) ReleaseOverview(ctx context.Context, now time.Time, limit, offse
 	if err != nil {
 		return v, err
 	}
-	filter := ` FROM provider_episodes p JOIN release_follows f ON f.title_id=p.title_id AND f.provider_id=p.show_id JOIN library_titles t ON t.id=p.title_id WHERE f.enabled AND p.active AND p.scheduled_at>$1`
+	filter := ` FROM provider_episodes p JOIN release_follows f ON f.title_id=p.title_id AND f.provider_id=p.show_id JOIN library_titles t ON t.id=p.title_id WHERE t.canonical_id IS NULL AND f.enabled AND p.active AND p.scheduled_at>$1`
 	if e = s.pool.QueryRow(ctx, "SELECT count(*)"+filter, now).Scan(&v.UpcomingTotal); e != nil {
 		return v, e
 	}
@@ -187,10 +187,10 @@ func (s *Store) ReleaseOverview(ctx context.Context, now time.Time, limit, offse
 	if e != nil {
 		return v, e
 	}
-	if e = s.pool.QueryRow(ctx, "SELECT count(*) FROM release_events").Scan(&v.RecentTotal); e != nil {
+	if e = s.pool.QueryRow(ctx, "SELECT count(*) FROM release_events e JOIN library_titles t ON t.id=e.title_id WHERE t.canonical_id IS NULL").Scan(&v.RecentTotal); e != nil {
 		return v, e
 	}
-	rows, e = s.pool.Query(ctx, `SELECT e.id,e.title_id::text,e.title_name,e.category,e.episode_id,e.kind,e.episode_name,e.season,e.number,e.reported_at,e.precision,e.provider_url,COALESCE(o.status,'held') FROM release_events e LEFT JOIN notification_outbox o ON o.event_id=e.id ORDER BY e.created_at DESC,e.id DESC LIMIT $1 OFFSET $2`, limit, offset)
+	rows, e = s.pool.Query(ctx, `SELECT e.id,e.title_id::text,e.title_name,e.category,e.episode_id,e.kind,e.episode_name,e.season,e.number,e.reported_at,e.precision,e.provider_url,COALESCE(o.status,'held') FROM release_events e LEFT JOIN notification_outbox o ON o.event_id=e.id JOIN library_titles t ON t.id=e.title_id WHERE t.canonical_id IS NULL ORDER BY e.created_at DESC,e.id DESC LIMIT $1 OFFSET $2`, limit, offset)
 	if e != nil {
 		return v, e
 	}

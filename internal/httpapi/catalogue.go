@@ -18,6 +18,7 @@ type LibraryStore interface {
 }
 type ScanRequester interface{ RequestScan(string) error }
 type apiOptions struct {
+	multi     MultiServerStore
 	releases  ReleaseService
 	telegram  TelegramService
 	metadata  MetadataService
@@ -61,7 +62,7 @@ func writeRequest(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 func titleQuery(r *http.Request) (store.TitleQuery, error) {
-	q := store.TitleQuery{Search: strings.TrimSpace(r.URL.Query().Get("q")), Category: r.URL.Query().Get("category"), Limit: 48}
+	q := store.TitleQuery{Search: strings.TrimSpace(r.URL.Query().Get("q")), Category: r.URL.Query().Get("category"), Limit: 48, ServerID: r.URL.Query().Get("server")}
 	var e error
 	if v := r.URL.Query().Get("limit"); v != "" {
 		q.Limit, e = strconv.Atoi(v)
@@ -75,7 +76,7 @@ func titleQuery(r *http.Request) (store.TitleQuery, error) {
 			return q, e
 		}
 	}
-	if len(q.Search) > 300 || q.Limit < 1 || q.Limit > 100 || q.Offset < 0 || q.Offset > 1000000 {
+	if len(q.ServerID) > 100 || len(q.Search) > 300 || q.Limit < 1 || q.Limit > 100 || q.Offset < 0 || q.Offset > 1000000 {
 		return q, errors.New("invalid pagination")
 	}
 	switch q.Category {

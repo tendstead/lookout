@@ -28,6 +28,11 @@ func readFollow(row pgx.Row) (Follow, error) {
 	return f, e
 }
 func (s *Store) GetFollow(ctx context.Context, id string) (Follow, error) {
+	canonical, err := s.CanonicalID(ctx, id)
+	if err != nil {
+		return Follow{}, err
+	}
+	id = canonical
 	f, e := readFollow(s.pool.QueryRow(ctx, "SELECT "+followColumns+" FROM library_titles t LEFT JOIN release_follows f ON f.title_id=t.id WHERE t.id::text=$1", id))
 	if e == pgx.ErrNoRows {
 		return f, ErrNotFound
@@ -35,6 +40,11 @@ func (s *Store) GetFollow(ctx context.Context, id string) (Follow, error) {
 	return f, e
 }
 func (s *Store) SetFollow(ctx context.Context, id string, enabled bool, now time.Time) error {
+	canonical, err := s.CanonicalID(ctx, id)
+	if err != nil {
+		return err
+	}
+	id = canonical
 	tx, e := s.pool.Begin(ctx)
 	if e != nil {
 		return e
@@ -60,7 +70,7 @@ func (s *Store) SetFollow(ctx context.Context, id string, enabled bool, now time
 	return tx.Commit(ctx)
 }
 func (s *Store) SeedFollows(ctx context.Context) error {
-	_, e := s.pool.Exec(ctx, `INSERT INTO release_follows(title_id,provider_id) SELECT id,COALESCE(provider_ids->>'tvmaze','') FROM library_titles WHERE category IN('series','anime_series') ON CONFLICT DO NOTHING`)
+	_, e := s.pool.Exec(ctx, `INSERT INTO release_follows(title_id,provider_id) SELECT id,COALESCE(provider_ids->>'tvmaze','') FROM library_titles WHERE canonical_id IS NULL AND category IN('series','anime_series') ON CONFLICT DO NOTHING`)
 	return e
 }
 func (s *Store) SyncFollowProviders(ctx context.Context, now time.Time) error {
@@ -68,7 +78,7 @@ func (s *Store) SyncFollowProviders(ctx context.Context, now time.Time) error {
 	return e
 }
 func (s *Store) ListFollows(ctx context.Context) ([]Follow, error) {
-	rows, e := s.pool.Query(ctx, "SELECT "+followColumns+" FROM release_follows f JOIN library_titles t ON t.id=f.title_id ORDER BY t.id")
+	rows, e := s.pool.Query(ctx, "SELECT "+followColumns+" FROM release_follows f JOIN library_titles t ON t.id=f.title_id WHERE t.canonical_id IS NULL ORDER BY t.id")
 	if e != nil {
 		return nil, e
 	}

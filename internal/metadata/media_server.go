@@ -22,6 +22,7 @@ type ServerItem struct {
 	ImagePath   string            `json:"image_path"`
 }
 type MediaServer struct {
+	ServerID string        `json:"server_id,omitempty"`
 	Kind     string        `json:"kind"`
 	BaseURL  string        `json:"url"`
 	Token    string        `json:"token"`

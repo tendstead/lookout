@@ -15,9 +15,16 @@ import (
 	"time"
 )
 
-type Config struct {
+type ServerConfig struct {
+	ID    string            `json:"id"`
+	Name  string            `json:"name"`
 	SSH   library.SSHConfig `json:"ssh"`
 	Roots []library.Root    `json:"roots"`
+}
+type Config struct {
+	SSH     library.SSHConfig `json:"ssh"`
+	Roots   []library.Root    `json:"roots"`
+	Servers []ServerConfig    `json:"servers"`
 }
 
 func LoadConfig(file string) (Config, error) {
@@ -32,19 +39,37 @@ func LoadConfig(file string) (Config, error) {
 	if e = json.Unmarshal(raw, &c); e != nil {
 		return c, errors.New("invalid catalogue configuration")
 	}
+	if len(c.Servers) > 0 && len(c.Roots) > 0 {
+		return c, errors.New("use legacy roots or servers, not both")
+	}
+	if len(c.Servers) == 0 && len(c.Roots) > 0 {
+		c.Servers = []ServerConfig{{ID: "legacy", Name: c.SSH.Host, SSH: c.SSH, Roots: c.Roots}}
+	}
+	c.Roots = nil
 	ids := map[string]bool{}
-	paths := map[string]bool{}
-	for _, r := range c.Roots {
-		if r.ID == "" || strings.ContainsAny(r.ID, "/\\") || ids[r.ID] || paths[r.Path] || !path.IsAbs(r.Path) || path.Clean(r.Path) != r.Path || r.Path == "/" {
-			return c, errors.New("invalid or repeated source root")
+	servers := map[string]bool{}
+	for i := range c.Servers {
+		v := &c.Servers[i]
+		if v.ID == "" || len(v.ID) > 100 || strings.ContainsAny(v.ID, "/\\") || servers[v.ID] {
+			return c, errors.New("invalid or repeated server ID")
 		}
-		switch r.Category {
-		case "series", "movie", "anime_series", "anime_movie":
-		default:
-			return c, errors.New("unknown source category")
+		servers[v.ID] = true
+		paths := map[string]bool{}
+		for j := range v.Roots {
+			r := &v.Roots[j]
+			r.ServerID = v.ID
+			if r.ID == "" || strings.ContainsAny(r.ID, "/\\") || ids[r.ID] || paths[r.Path] || !path.IsAbs(r.Path) || path.Clean(r.Path) != r.Path || r.Path == "/" {
+				return c, errors.New("invalid or repeated source root")
+			}
+			switch r.Category {
+			case "series", "movie", "anime_series", "anime_movie":
+			default:
+				return c, errors.New("unknown source category")
+			}
+			ids[r.ID] = true
+			paths[r.Path] = true
+			c.Roots = append(c.Roots, *r)
 		}
-		ids[r.ID] = true
-		paths[r.Path] = true
 	}
 	return c, nil
 }
@@ -58,6 +83,11 @@ type Service struct {
 }
 
 func New(ctx context.Context, s *store.Store, c Config) (*Service, error) {
+	for _, v := range c.Servers {
+		if e := s.EnsureServer(ctx, v.ID, v.Name); e != nil {
+			return nil, e
+		}
+	}
 	for _, r := range c.Roots {
 		if e := s.EnsureSource(ctx, r); e != nil {
 			return nil, e
@@ -92,21 +122,62 @@ func (s *Service) RequestScan(id string) error {
 	}
 }
 func (s *Service) Run(ctx context.Context) {
-	ticker := time.NewTicker(time.Hour)
+	slots := make(chan struct{}, 4)
+	queues := map[string]chan string{}
+	hosts := map[string]string{}
+	var workers sync.WaitGroup
+	for _, root := range s.config.Roots {
+		hosts[root.ID] = root.ServerID
+		if queues[root.ServerID] != nil {
+			continue
+		}
+		queue := make(chan string, len(s.config.Roots))
+		queues[root.ServerID] = queue
+		workers.Go(func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case id := <-queue:
+					select {
+					case slots <- struct{}{}:
+					case <-ctx.Done():
+						return
+					}
+					s.scan(ctx, id)
+					<-slots
+					s.mu.Lock()
+					delete(s.pending, id)
+					s.mu.Unlock()
+				}
+			}
+		})
+	}
+	defer workers.Wait()
+	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
+	schedule := func() {
+		for _, r := range s.config.Roots {
+			if due, e := s.store.SourceDue(ctx, r.ID); e == nil && due {
+				_ = s.RequestScan(r.ID)
+			}
+		}
+	}
+	schedule()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case id := <-s.queue:
-			s.scan(ctx, id)
-			s.mu.Lock()
-			delete(s.pending, id)
-			s.mu.Unlock()
-		case <-ticker.C:
-			for _, r := range s.config.Roots {
-				_ = s.RequestScan(r.ID)
+			if queue := queues[hosts[id]]; queue != nil {
+				select {
+				case queue <- id:
+				case <-ctx.Done():
+					return
+				}
 			}
+		case <-ticker.C:
+			schedule()
 		}
 	}
 }
@@ -124,7 +195,13 @@ func (s *Service) scan(ctx context.Context, id string) {
 		log.Printf("Source %s scan could not start", id)
 		return
 	}
-	reader, e := library.Connect(job, s.config.SSH)
+	ssh := s.config.SSH
+	for _, v := range s.config.Servers {
+		if v.ID == root.ServerID {
+			ssh = v.SSH
+		}
+	}
+	reader, e := library.Connect(job, ssh)
 	var stats library.ScanStats
 	if e == nil {
 		stats, e = library.Scan(job, reader, root, func(f library.FileObservation) error { return s.store.Observe(job, scan, f) })
@@ -139,5 +216,6 @@ func (s *Service) scan(ctx context.Context, id string) {
 		log.Printf("Source %s scan incomplete; inventory retained", id)
 	} else {
 		log.Printf("Source %s scan complete: %d media", id, stats.Media)
+		_ = s.store.ReconcileIdentities(job)
 	}
 }

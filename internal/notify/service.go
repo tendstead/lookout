@@ -60,6 +60,7 @@ func (s *Service) Verify(ctx context.Context) error {
 	return e
 }
 func (s *Service) Run(ctx context.Context) {
+	go s.trackWanted(ctx)
 	if s.client == nil {
 		return
 	}
@@ -93,6 +94,9 @@ func (s *Service) DeliverOne(ctx context.Context, now time.Time) error {
 		return nil
 	}
 	d, e := s.store.ClaimNotification(ctx, now)
+	if e == nil && d == nil {
+		d, e = s.store.ClaimWantedNotification(ctx, now)
+	}
 	if e != nil || d == nil {
 		return e
 	}
@@ -109,6 +113,9 @@ func (s *Service) DeliverOne(ctx context.Context, now time.Time) error {
 		message += "\n" + d.URL
 	}
 	message += "\nProvider: TVmaze. This does not confirm a local copy."
+	if d.Wanted {
+		message = "Wanted title now available\n" + d.Title + " · " + d.Name + "\nAdded on " + d.ServerName
+	}
 	send, cancel := context.WithTimeout(ctx, 10*time.Second)
 	e = s.client.Send(send, message)
 	cancel()
@@ -119,5 +126,23 @@ func (s *Service) DeliverOne(ctx context.Context, now time.Time) error {
 	}
 	save, end := context.WithTimeout(context.Background(), 5*time.Second)
 	defer end()
+	if d.Wanted {
+		return s.store.MarkWantedNotification(save, d.ID, e == nil, retry, now, d.WantedIDs...)
+	}
 	return s.store.MarkNotification(save, d.ID, e == nil, retry, now)
+}
+
+func (s *Service) trackWanted(ctx context.Context) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			request, cancel := context.WithTimeout(ctx, 20*time.Second)
+			_ = s.store.RefreshWanted(request, s.DeliveryAuthorized())
+			cancel()
+		}
+	}
 }

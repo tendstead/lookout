@@ -8,6 +8,7 @@ import (
 	"github.com/tendstead/lookout/internal/metadata"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestConnectionSecretsNotExposed(t *testing.T) {
@@ -78,5 +79,39 @@ func TestMetadataRequiresStablePathAndPreservesManualMatch(t *testing.T) {
 	title, e := s.GetTitle(ctx, ids[0])
 	if e != nil || title.Name != "Chosen Show" || title.ProviderIDs["tvdb"] != "999" {
 		t.Fatal("manual match overwritten", title, e)
+	}
+}
+func TestManualMatchResetsArtworkAndReleaseBaseline(t *testing.T) {
+	s := testStore(t)
+	id := releaseTitle(t, s)
+	ctx := context.Background()
+	first := metadata.Candidate{Provider: "tvmaze", ID: "9", Name: "First", ProviderIDs: map[string]string{"tvmaze": "9"}, ImageURL: "https://static.tvmaze.com/uploads/images/first.jpg"}
+	if e := s.ApplyMetadata(ctx, id, MetadataUpdate{Candidate: first, Manual: true}); e != nil {
+		t.Fatal(e)
+	}
+	if e := s.CacheArtwork(ctx, id, "image/png", []byte{1, 2, 3}); e != nil {
+		t.Fatal(e)
+	}
+	now := time.Now().UTC()
+	if e := s.SetFollow(ctx, id, true, now); e != nil {
+		t.Fatal(e)
+	}
+	f, _ := s.GetFollow(ctx, id)
+	if _, e := s.SaveEpisodeSnapshot(ctx, f, nil, now, false); e != nil {
+		t.Fatal(e)
+	}
+	next := first
+	next.ID = "10"
+	next.ProviderIDs = map[string]string{"tvmaze": "10"}
+	next.ImageURL = "https://static.tvmaze.com/uploads/images/next.jpg"
+	if e := s.ApplyMetadata(ctx, id, MetadataUpdate{Candidate: next, Manual: true}); e != nil {
+		t.Fatal(e)
+	}
+	if _, _, e := s.CachedArtwork(ctx, id); e == nil {
+		t.Fatal("old artwork retained after manual correction")
+	}
+	f, _ = s.GetFollow(ctx, id)
+	if f.ProviderID != "10" || f.Initialized {
+		t.Fatal("old show's schedule retained", f)
 	}
 }

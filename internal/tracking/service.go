@@ -97,7 +97,7 @@ func (s *Service) Refresh(ctx context.Context, force bool) error {
 		if !follow.Enabled || follow.ProviderID == "" {
 			continue
 		}
-		due := force || !follow.Initialized || !now.Before(follow.NextRefresh)
+		due := refreshDue(follow, now, force)
 		if !due && follow.LastError == "" {
 			due, e = s.Store.CachedDue(ctx, follow, now)
 			if e != nil {
@@ -141,4 +141,8 @@ func (s *Service) SetFollow(ctx context.Context, id string, enabled bool) error 
 		_ = s.Queue()
 	}
 	return nil
+}
+
+func refreshDue(f store.Follow, now time.Time, force bool) bool {
+	return force || !now.Before(f.NextRefresh) || !f.Initialized && f.LastError == ""
 }

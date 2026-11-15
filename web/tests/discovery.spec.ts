@@ -371,3 +371,53 @@ test('upcoming artwork is retried when a refreshed card represents another serie
     }),
   ).toBeVisible();
 });
+
+test('overview posters are compact at 1920px while the width limit and phone grid stay useful', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 1000 });
+  await page.route('**/api/v1/titles?*', (route) =>
+    route.fulfill({
+      json: {
+        items: Array.from({ length: 16 }, (_, i) => ({
+          id: 'compact-' + i,
+          name: 'Local title ' + i,
+          category: 'movie',
+          provider_ids: {},
+          provenance: 'filename',
+          match_status: 'unmatched',
+          file_count: 1,
+          source_label: 'Films',
+        })),
+        total: 16,
+        limit: 48,
+        offset: 0,
+      },
+    }),
+  );
+  await page.goto('/');
+  await expect(page.locator('.title-card')).toHaveCount(16);
+  const count = () =>
+    page.locator('.title-card').evaluateAll((nodes) => {
+      const top = nodes[0].getBoundingClientRect().top;
+      return nodes.filter(
+        (node) => Math.abs(node.getBoundingClientRect().top - top) < 2,
+      ).length;
+    });
+  const width = await page
+    .locator('.title-card')
+    .first()
+    .evaluate((el) => el.getBoundingClientRect().width);
+  expect(width).toBeGreaterThanOrEqual(170);
+  expect(width).toBeLessThanOrEqual(210);
+  expect(await count()).toBe(8);
+  await page.getByRole('button', { name: 'Limit width', exact: true }).click();
+  expect(await count()).toBe(6);
+  await page.setViewportSize({ width: 390, height: 664 });
+  expect(await count()).toBe(2);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});

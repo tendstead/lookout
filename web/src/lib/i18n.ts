@@ -1,5 +1,39 @@
 export const translations = {
   en: {
+    releases: 'Releases',
+    upcomingEpisodes: 'Upcoming episodes',
+    reportedAired: 'Reported aired',
+    releaseNotice:
+      'Air dates are provider reports, not confirmation of a local copy.',
+    followReleases: 'Follow releases',
+    followingReleases: 'Following releases',
+    unfollowReleases: 'Unfollow releases',
+    releaseFollowing: 'followed titles',
+    scheduleReady: 'with episode schedules',
+    matchNeeded: 'need a TVmaze match',
+    refreshReleases: 'Refresh schedules',
+    newSeason: 'New season',
+    newEpisode: 'New episode',
+    noUpcoming: 'No upcoming episodes with known dates',
+    noAnnouncements: 'No new releases announced since the baseline',
+    baselineNote:
+      'The first successful check establishes a quiet baseline. Historical episodes do not trigger notifications.',
+    dateOnly: 'Date only',
+    special: 'Special / unnumbered',
+    releaseError: 'Release data could not be loaded.',
+    telegramConnection: 'Telegram connection',
+    verifyTelegram: 'Verify Telegram connection',
+    telegramNotConfigured: 'Telegram credentials are not configured.',
+    telegramVerifyNote:
+      'Verification checks the bot and chat without sending a test message.',
+    telegramEnabled: 'Future release notifications enabled',
+    telegramPaused: 'Message delivery paused',
+    telegramError: 'Telegram bot/chat could not be verified.',
+    telegramState: 'Connection status',
+    providerLink: 'View provider entry',
+    followPending: 'Waiting for the first schedule check',
+    followError: 'Follow settings could not be saved.',
+
     connections: 'Connections',
     metadataConnections: 'Metadata connections',
     connectionIntro:
@@ -135,6 +169,41 @@ export const translations = {
     api: 'Read-only status API',
   },
   de: {
+    releases: 'Veröffentlichungen',
+    upcomingEpisodes: 'Kommende Folgen',
+    reportedAired: 'Laut Anbieter ausgestrahlt',
+    releaseNotice:
+      'Sendetermine sind Anbieterangaben und bestätigen keine lokale Kopie.',
+    followReleases: 'Veröffentlichungen verfolgen',
+    followingReleases: 'Veröffentlichungen werden verfolgt',
+    unfollowReleases: 'Nicht mehr verfolgen',
+    releaseFollowing: 'verfolgte Titel',
+    scheduleReady: 'mit Folgenplan',
+    matchNeeded: 'benötigen eine TVmaze-Zuordnung',
+    refreshReleases: 'Folgenpläne aktualisieren',
+    newSeason: 'Neue Staffel',
+    newEpisode: 'Neue Folge',
+    noUpcoming: 'Keine kommenden Folgen mit bekanntem Termin',
+    noAnnouncements: 'Keine neuen Veröffentlichungen seit dem Ausgangsstand',
+    baselineNote:
+      'Die erste erfolgreiche Prüfung legt einen stillen Ausgangsstand fest. Vergangene Folgen lösen keine Benachrichtigungen aus.',
+    dateOnly: 'Nur Datum bekannt',
+    special: 'Special / ohne Nummer',
+    releaseError: 'Veröffentlichungen konnten nicht geladen werden.',
+    telegramConnection: 'Telegram-Verbindung',
+    verifyTelegram: 'Telegram-Verbindung prüfen',
+    telegramNotConfigured: 'Telegram-Zugangsdaten sind nicht eingerichtet.',
+    telegramVerifyNote:
+      'Die Prüfung kontrolliert Bot und Chat, ohne eine Testnachricht zu senden.',
+    telegramEnabled:
+      'Benachrichtigungen für zukünftige Veröffentlichungen aktiviert',
+    telegramPaused: 'Nachrichtenversand pausiert',
+    telegramError: 'Telegram-Bot oder Chat konnten nicht geprüft werden.',
+    telegramState: 'Verbindungsstatus',
+    providerLink: 'Anbietereintrag öffnen',
+    followPending: 'Erste Prüfung des Folgenplans steht aus',
+    followError: 'Die Einstellung konnte nicht gespeichert werden.',
+
     connections: 'Verbindungen',
     metadataConnections: 'Metadaten-Verbindungen',
     connectionIntro:

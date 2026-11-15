@@ -7,6 +7,7 @@
   import SystemIcon from './lib/SystemIcon.svelte';
   import Library from './lib/Library.svelte';
   import Connections from './lib/Connections.svelte';
+  import Releases from './lib/Releases.svelte';
   let locale = $state<Locale>('en');
   let dark = $state(false);
   let pathname = $state(window.location.pathname);
@@ -17,6 +18,12 @@
   const t = (key: Key) => translate(locale, key);
   const destinations = $derived<Destination[]>([
     { id: 'overview', label: t('overview'), href: '/', icon: LibraryIcon },
+    {
+      id: 'releases',
+      label: t('releases'),
+      href: '/releases',
+      icon: SystemIcon,
+    },
     { id: 'sources', label: t('sources'), href: '/sources', icon: SystemIcon },
     {
       id: 'connections',
@@ -29,6 +36,7 @@
   const isSystem = $derived(pathname === '/system');
   const isSources = $derived(pathname === '/sources');
   const isConnections = $derived(pathname === '/connections');
+  const isReleases = $derived(pathname === '/releases');
   const isDetail = $derived(pathname.startsWith('/titles/'));
   function save(key: string, value: string) {
     try {
@@ -95,18 +103,20 @@
 <AppShell
   brand="Tendstead"
   appLabel="Lookout"
-  pageTitle={isConnections
-    ? t('connections')
-    : isSystem
-      ? t('system')
-      : isSources
-        ? t('sources')
-        : isDetail
-          ? t('library')
-          : t('overview')}
+  pageTitle={isReleases
+    ? t('releases')
+    : isConnections
+      ? t('connections')
+      : isSystem
+        ? t('system')
+        : isSources
+          ? t('sources')
+          : isDetail
+            ? t('library')
+            : t('overview')}
   {pathname}
   {destinations}
-  mobilePrimaryIds={['overview', 'sources', 'system']}
+  mobilePrimaryIds={['overview', 'releases', 'sources']}
   onNavigate={navigate}
   {locale}
 >
@@ -133,12 +143,16 @@
   {/snippet}
   <div class="page">
     {#if !isSystem}
-      {#if !isSources && !isDetail && !isConnections}<section class="intro">
+      {#if !isSources && !isDetail && !isConnections && !isReleases}<section
+          class="intro"
+        >
           <p class="eyebrow">{t('local')}</p>
           <h2>{t('headline')}</h2>
           <p class="lead">{t('intro')}</p>
         </section>{/if}
-      {#if isConnections}<Connections {locale} />{:else}{#key pathname}<Library
+      {#if isReleases}<Releases {locale} />{:else if isConnections}<Connections
+          {locale}
+        />{:else}{#key pathname}<Library
             {locale}
             mode={isSources ? 'sources' : isDetail ? 'detail' : 'overview'}
             titleID={isDetail ? pathname.slice('/titles/'.length) : ''}

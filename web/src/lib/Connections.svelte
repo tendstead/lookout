@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import Telegram from './Telegram.svelte';
   import { translate, type Locale, type Key } from './i18n';
   type Mapping = {
     server_prefix: string;
@@ -254,3 +255,5 @@
       >
     </p>
   </section>{/if}
+
+<Telegram {locale} />

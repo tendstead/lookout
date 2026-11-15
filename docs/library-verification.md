@@ -147,3 +147,39 @@ The deployed LAN service passed all 24 browser cases, and the refreshed phone
 screenshot was visually inspected. Read-only series/anime scans were refreshed
 when the freshness guard correctly classified the old inventory as needing review;
 normal comparison cards returned afterward. No NAS files were changed.
+
+## Discovery and gallery controls — 2026-11-15
+
+Upcoming episodes now use date-led calendar cards with series artwork and an
+explicit Upcoming episode or Season premiere badge. Date-only fixtures show the
+reported date without an invented time; regular-season episode 1 is the premiere
+case. Missing-season coverage remains a separate presentation.
+
+Overview now uses the same fluid 340px-minimum grid as Releases. Limit width caps
+both gallery pages at 1600px, saved only in this browser's localStorage. Live
+ultrawide verification measured 6 columns in full-width mode and 4 when limited, and
+the setting survived reload/navigation without affecting a fresh browser context.
+Phone checks found no horizontal overflow.
+
+Type-ahead uses the bounded local suggestion endpoint with observed/stable-file
+evidence and active category filtering. User explicitly chose all local titles,
+including series/anime. Store/API tests exclude missing/unconfirmed-only titles;
+browser tests cover minimum length/debounce, keyboard and pointer selection,
+Escape, obsolete responses and manual search after failure. Eight real Harry
+Potter suggestions appeared from the local catalogue. Typing has no metadata or
+artwork lookup path.
+
+The full check passed with 34 desktop/mobile tests, zero type errors/warnings,
+real isolated PostgreSQL cases, lifecycle checks, audits and workflow lint. Fresh
+source review found one artwork-state reuse issue; its controlled refresh regression
+was observed failing and then passed after title-identity keying. All 34 browser cases
+also passed against the deployed LAN image. Screenshots of actual upcoming cards,
+type-ahead, overview and ultrawide limiting were visually inspected. Nine live
+upcoming cards rendered, including a season premiere.
+
+The browser issued zero external image requests during live QA: card images used
+Lookout's local endpoint. On-demand upstream fetching and PostgreSQL byte caching
+were verified in the owning source; this is not whole-library predownload. The
+running healthy image digest matched the tested build. README images were refreshed.
+No new external dependencies, migrations, source credentials or Telegram behavior
+were introduced.

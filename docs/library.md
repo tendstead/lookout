@@ -7,6 +7,34 @@ and rejects paths outside configured roots. It issues no remote shell commands o
 write operations. A server account restricted to reading those roots is recommended;
 client read-only behavior does not change the permissions of your SSH account.
 
+## Browsing, search and display width
+
+Overview and Releases use the same fluid card sizing: columns follow the available
+window width rather than a fixed count. **Limit width** in the top bar caps gallery
+content at 1600px, roughly four cards on an ultrawide display, while narrower
+screens keep adapting. The setting is shared between those two pages and saved
+only in this browser's localStorage (`lookout.limitWidth`). It survives reloads
+and browser sessions until cleared; other devices/browsers are independent. If
+storage is blocked, the toggle still works for the current page session.
+
+Overview search suggests up to eight locally catalogued titles after two characters
+and a short debounce. Suggestions include films, series and anime and respect the
+active category. Only titles with at least one observed/stable file are eligible;
+titles with exclusively missing or unconfirmed files are excluded. The dropdown
+uses text from Lookout's database only: typing does not contact metadata providers
+or fetch suggestion artwork. Use arrows and Enter to open a title, Escape to dismiss,
+or select with the pointer. The ordinary Search button remains available if the
+suggestion request fails. Obsolete requests are cancelled/ignored.
+
+### Where artwork lives
+
+The browser loads every card image through Lookout's own artwork endpoint. On a
+cache miss, Lookout fetches the image server-side from the configured Jellyfin/Plex
+server or permitted TVmaze artwork host, validates and bounds the response, and
+stores the bytes in PostgreSQL (`metadata_images`). Cached artwork needs no upstream
+request. Images are loaded on demand rather than predownloaded for the whole library;
+uncached images still need the upstream source. Connection tokens stay server-side.
+
 ## Source setup
 
 Complete [database deployment](deployment.md) first. Create a private runtime
@@ -142,6 +170,15 @@ ordering always requires review because local/TVDB and TVmaze season structures
 can differ. Those titles do not produce definitive missing/partial claims.
 Refresh schedules or rescan the source as appropriate; changing data is reflected
 by the comparison without generating historical Telegram alerts.
+
+### Upcoming episodes and season premieres
+
+Upcoming releases use calendar-style cards with a scheduled day/date, optional
+reported time, small series poster and provider attribution. Regular-season episode 1
+is labeled **Season premiere**; other episodes are labeled **Upcoming episode**.
+They are visually separate from missing-season coverage cards and make no local-copy
+claim. Date-only entries show the provider date with **Date only**, never an invented
+air time. Unknown dates remain excluded from the scheduled list.
 
 The first successful fetch establishes a silent baseline: old episodes generate no
 alerts. A later reported air time creates a deduplicated episode event; episode 1

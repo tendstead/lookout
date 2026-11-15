@@ -30,24 +30,17 @@ test('foundation is usable, bilingual and persists preferences', async ({
   if (process.env.UPDATE_SCREENSHOTS === '1') {
     if (testInfo.project.name === 'mobile') {
       await page.goto('/releases');
+      const upcoming = page.getByRole('region', {
+        name: 'Upcoming episodes',
+        exact: true,
+      });
       await expect(
-        page.getByRole('heading', {
-          name: 'Seasons missing from your library',
+        upcoming.getByRole('heading', {
+          name: 'Upcoming episodes',
           exact: true,
         }),
       ).toBeVisible();
-      const gaps = page.getByRole('region', {
-        name: 'Seasons missing from your library',
-        exact: true,
-      });
-      await expect(gaps.getByRole('status')).toHaveCount(0);
-      const multiSeason = gaps
-        .locator('.gap-list > li')
-        .filter({ has: page.locator('.season-selector button:nth-child(2)') })
-        .first();
-      const firstCard = (await multiSeason.count())
-        ? multiSeason
-        : gaps.locator('.gap-list > li').first();
+      const firstCard = upcoming.locator('.upcoming-card').first();
       if (await firstCard.count()) {
         await firstCard.evaluate((el) => el.scrollIntoView({ block: 'start' }));
         await firstCard.evaluate(async (el) => {
@@ -58,7 +51,22 @@ test('foundation is usable, bilingual and persists preferences', async ({
               img.addEventListener('error', () => resolve(), { once: true });
             });
         });
-      } else await gaps.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+      } else
+        await upcoming.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+    } else {
+      await page.setViewportSize({ width: 1800, height: 1000 });
+      const grid = page.locator('.title-grid');
+      if (await grid.count()) {
+        await grid.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+        await page.waitForFunction(() =>
+          [...document.querySelectorAll<HTMLImageElement>('.title-art img')]
+            .filter((img) => {
+              const rect = img.getBoundingClientRect();
+              return rect.top < innerHeight && rect.bottom > 0;
+            })
+            .every((img) => img.complete),
+        );
+      }
     }
     await page.screenshot({
       path: `../docs/screenshots/${testInfo.project.name}.png`,

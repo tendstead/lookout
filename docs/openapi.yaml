@@ -973,6 +973,84 @@
           }
         }
       }
+    },
+    "/api/v1/titles/suggestions": {
+      "get": {
+        "summary": "Suggest up to eight locally available catalogue titles without external lookup",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 300
+            },
+            "description": "At least two characters for suggestions; shorter queries return an empty list."
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "movie",
+                "series",
+                "anime_movie",
+                "anime_series"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "items array of id/name/category/optional year; observed or stable local-file evidence required"
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "503": {
+            "description": "Local catalogue unavailable"
+          }
+        }
+      },
+      "head": {
+        "summary": "Suggest up to eight locally available catalogue titles without external lookup (headers only)",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 300
+            },
+            "description": "At least two characters for suggestions; shorter queries return an empty list."
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "movie",
+                "series",
+                "anime_movie",
+                "anime_series"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "items array of id/name/category/optional year; observed or stable local-file evidence required"
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "503": {
+            "description": "Local catalogue unavailable"
+          }
+        }
+      }
     }
   }
 }

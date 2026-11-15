@@ -10,7 +10,10 @@ videos appear as archive members without extraction.
 Follow series/anime for upcoming episodes and provider-reported season premieres.
 Poster cards show missing and partial aired seasons, episode coverage and local
 season chips. Multiple seasons share one series card, and the grid fits the
-available window width. Uncertain numbering stays separated for review. The first successful
+available window width. A browser-saved width limit keeps ultrawide galleries
+readable. Search suggests local films, series and anime as you type; upcoming
+releases have their own calendar-style cards. Uncertain numbering stays separated
+for review. The first successful
 schedule fetch establishes a silent baseline. Optional Telegram alerts apply to
 future releases; verifying the bot/chat sends no test message.
 Lookout does not download, play, move, rename or delete media.
@@ -39,7 +42,7 @@ server. Language and theme are saved separately on each device.
 
 | Desktop | Phone |
 | --- | --- |
-| ![Lookout desktop library with metadata and cover artwork](docs/screenshots/desktop.png) | ![Lookout mobile series card with grouped seasons and episode coverage](docs/screenshots/mobile.png) |
+| ![Lookout desktop library with metadata and cover artwork](docs/screenshots/desktop.png) | ![Lookout mobile upcoming releases with calendar dates and artwork](docs/screenshots/mobile.png) |
 
 Configure [read-only library and integrations](docs/library.md). See [deployment](docs/deployment.md), [API](docs/api.md), and
 [development and checks](docs/development.md) for more details.

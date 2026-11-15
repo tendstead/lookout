@@ -6,4 +6,4 @@ Add opt-in `group_by=title` to the gap endpoint. Group by stable title ID after 
 
 One shared poster/title per series; multiple missing/partial seasons appear as accessible selectable season chips inside that card. Selecting a season changes its coverage and missing-number tiles, preserving every season's details. Single-season cards keep their existing presentation. Series with identical names but different IDs remain distinct.
 
-Use CSS Grid auto-fit with a readable minimum card width, fluid columns and a width-safe single column on narrow phones. Expand only the Releases page beyond the old880px cap so wide displays can fit three or more cards. Other views keep their current widths. No new dependencies or NAS/provider/Telegram behavior changes.
+Use CSS Grid auto-fill with a readable minimum card width, fluid columns and a width-safe single column on narrow phones. Expand only the Releases page beyond the old880px cap so wide displays can fit three or more cards. Other views keep their current widths. No new dependencies or NAS/provider/Telegram behavior changes.

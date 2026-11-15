@@ -12,6 +12,7 @@ import (
 )
 
 type SeasonGap struct {
+	Seasons []releases.SeasonDifference `json:"seasons,omitempty"`
 	releases.SeasonDifference
 	TitleID      string     `json:"title_id"`
 	Title        string     `json:"title"`
@@ -150,7 +151,32 @@ func (s *Store) SeasonGaps(ctx context.Context, q TitleQuery, kind string, now t
 		}
 		return all[i].Season < all[j].Season
 	})
+	visible := []SeasonGap{}
 	for _, row := range all {
+		if row.Kind == kind {
+			visible = append(visible, row)
+		}
+	}
+	if q.GroupByTitle && kind != "review" {
+		grouped := []SeasonGap{}
+		byID := map[string]int{}
+		for _, row := range visible {
+			index, exists := byID[row.TitleID]
+			if !exists {
+				index = len(grouped)
+				byID[row.TitleID] = index
+				first := row
+				first.SeasonDifference = releases.SeasonDifference{Kind: kind, MissingEpisodes: []int{}}
+				first.Seasons = []releases.SeasonDifference{}
+				grouped = append(grouped, first)
+			}
+			grouped[index].Seasons = append(grouped[index].Seasons, row.SeasonDifference)
+			grouped[index].Aired += row.Aired
+			grouped[index].Present += row.Present
+		}
+		visible = grouped
+	}
+	for _, row := range visible {
 		if row.Kind != kind {
 			continue
 		}

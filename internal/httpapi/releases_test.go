@@ -11,6 +11,7 @@ import (
 )
 
 type releaseFixture struct {
+	grouped  bool
 	enabled  bool
 	verified int
 }
@@ -62,7 +63,7 @@ func TestSeasonGapEndpointValidationAndResponse(t *testing.T) {
 	for _, tc := range []struct {
 		path string
 		code int
-	}{{"/api/v1/releases/gaps", 200}, {"/api/v1/releases/gaps?kind=partial&q=Show&limit=1&offset=1", 200}, {"/api/v1/releases/gaps?kind=review", 200}, {"/api/v1/releases/gaps?kind=anything", 400}, {"/api/v1/releases/gaps?limit=101", 400}} {
+	}{{"/api/v1/releases/gaps", 200}, {"/api/v1/releases/gaps?kind=partial&q=Show&limit=1&offset=1", 200}, {"/api/v1/releases/gaps?kind=review", 200}, {"/api/v1/releases/gaps?group_by=title", 200}, {"/api/v1/releases/gaps?group_by=season-name", 400}, {"/api/v1/releases/gaps?kind=anything", 400}, {"/api/v1/releases/gaps?limit=101", 400}} {
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, httptest.NewRequest("GET", tc.path, nil))
 		if w.Code != tc.code {
@@ -73,6 +74,17 @@ func TestSeasonGapEndpointValidationAndResponse(t *testing.T) {
 		}
 	}
 }
-func (f *releaseFixture) Gaps(context.Context, store.TitleQuery, string) (store.SeasonGapPage, error) {
+func (f *releaseFixture) Gaps(_ context.Context, q store.TitleQuery, _ string) (store.SeasonGapPage, error) {
+	f.grouped = q.GroupByTitle
 	return store.SeasonGapPage{Items: []store.SeasonGap{{TitleID: "show", LatestAired: 4}}}, nil
+}
+
+func TestSeasonGapGroupingIsForwarded(t *testing.T) {
+	fixture := &releaseFixture{}
+	h := NewHandler(func(context.Context) error { return nil }, nil, WithReleaseTracking(fixture, nil))
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/releases/gaps?group_by=title", nil))
+	if w.Code != 200 || !fixture.grouped {
+		t.Fatal("grouping flag was not passed to store", w.Code)
+	}
 }

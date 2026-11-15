@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"github.com/tendstead/lookout/internal/metadata"
 	"testing"
 	"time"
@@ -81,5 +82,77 @@ func TestSeasonGapsUseCurrentScheduleAndObservedNumbering(t *testing.T) {
 	page, e = s.SeasonGaps(ctx, TitleQuery{Limit: 1, Search: "does not match"}, "missing", now)
 	if e != nil || page.Total != 0 || page.Review != 0 {
 		t.Fatal("search did not filter", page, e)
+	}
+}
+
+func TestGroupedSeasonGapsKeepEverySeasonBeforePagination(t *testing.T) {
+	s := testStore(t)
+	id := releaseTitle(t, s)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	if _, e := s.pool.Exec(ctx, `UPDATE library_titles SET category='series' WHERE id=$1`, id); e != nil {
+		t.Fatal(e)
+	}
+	if _, e := s.pool.Exec(ctx, `UPDATE library_files SET season=1,episodes='{1}',numbering='season_episode' WHERE title_id=$1`, id); e != nil {
+		t.Fatal(e)
+	}
+	if _, e := s.pool.Exec(ctx, `UPDATE library_sources SET status='ready',last_success=$1`, now); e != nil {
+		t.Fatal(e)
+	}
+	var other string
+	// Same display name is deliberate: identity, not name, determines grouping.
+	if e := s.pool.QueryRow(ctx, `INSERT INTO library_titles(source_id,group_key,category,name,provider_ids) VALUES('releases','Other','series','Anime Show','{"tvmaze":"10"}') RETURNING id::text`).Scan(&other); e != nil {
+		t.Fatal(e)
+	}
+	if _, e := s.pool.Exec(ctx, `INSERT INTO library_files(source_id,title_id,relative_path,size,modified_at,season,episodes,numbering,last_scan,observation) SELECT source_id,$2,'Other/file.mkv',size,modified_at,season,episodes,numbering,last_scan,observation FROM library_files WHERE title_id=$1`, id, other); e != nil {
+		t.Fatal(e)
+	}
+	number := 1
+	for _, titleID := range []string{id, other} {
+		if e := s.SetFollow(ctx, titleID, true, now); e != nil {
+			t.Fatal(e)
+		}
+		f, e := s.GetFollow(ctx, titleID)
+		if e != nil {
+			t.Fatal(e)
+		}
+		episodes := []metadata.Episode{{ID: "two", Season: 2, Number: &number, AirStamp: now.Add(-time.Hour).Format(time.RFC3339)}}
+		if titleID == id {
+			for _, n := range []int{3, 4} {
+				episodes = append(episodes, metadata.Episode{ID: fmt.Sprint(n), Season: n, Number: &number, AirStamp: now.Add(-time.Hour).Format(time.RFC3339)})
+			}
+		}
+		if _, e = s.SaveEpisodeSnapshot(ctx, f, episodes, now, false); e != nil {
+			t.Fatal(e)
+		}
+	}
+	grouped := []SeasonGap{}
+	for offset := 0; offset < 2; offset++ {
+		page, e := s.SeasonGaps(ctx, TitleQuery{Limit: 1, Offset: offset, GroupByTitle: true}, "missing", now)
+		if e != nil || page.Total != 2 || page.Missing != 4 || len(page.Items) != 1 {
+			t.Fatalf("grouped page: %+v %v", page, e)
+		}
+		grouped = append(grouped, page.Items...)
+	}
+	if grouped[0].TitleID == grouped[1].TitleID {
+		t.Fatal("one series split across pages")
+	}
+	for _, row := range grouped {
+		want := 1
+		if row.TitleID == id {
+			want = 3
+		}
+		if len(row.Seasons) != want || row.Season != 0 || row.Aired != want || row.Present != 0 {
+			t.Fatalf("incomplete season group: %+v", row)
+		}
+		for i, season := range row.Seasons {
+			if season.Season != i+2 {
+				t.Fatal("season order changed", row.Seasons)
+			}
+		}
+	}
+	flat, e := s.SeasonGaps(ctx, TitleQuery{Limit: 10}, "missing", now)
+	if e != nil || flat.Total != 4 || len(flat.Items) != 4 || len(flat.Items[0].Seasons) != 0 {
+		t.Fatalf("flat API changed: %+v %v", flat, e)
 	}
 }

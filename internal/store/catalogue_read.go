@@ -10,6 +10,7 @@ import (
 )
 
 type TitleQuery struct {
+	GroupByTitle     bool
 	Search, Category string
 	Limit, Offset    int
 }

@@ -109,17 +109,22 @@ for manual review rather than implying schedule coverage.
 
 Open Releases → **Seasons missing from your library**. Missing seasons have no
 recognized local copies of their aired numbered episodes. Partial seasons have
-some, with a list of the aired episode numbers still absent. Each series gets one poster card per selected tab, with all of its missing or
+some, with a list of the aired episode numbers still absent. Each series gets one
+poster card per selected tab, with all of its missing or
 partial seasons grouped together. Select a season button inside the card to
 change the explicitly labeled coverage and missing-episode details. Each card
-highlights the season count or number, latest aired season and an
-accessible coverage bar. The poster is existing series artwork, not a claimed
+shows missing or partial season numbers as the same compact, selectable list
+for one or many seasons, alongside the latest aired season and an accessible
+coverage bar. The selected season is labeled above its episode coverage. The
+poster is existing series artwork, not a claimed
 season-specific cover. Chips show recognized local season numbers, without
 implying those seasons are complete. Expand missing episode numbers to see
 individual tiles, or Data freshness for schedule-check and source-scan times.
 Cards automatically fit as many readable columns as the available Releases width
 allows, and fall back to one width-safe column on phones. Artwork has an explicit
-fallback when unavailable. Review cards show their uncertainty reasons without a coverage bar. Search filters all three tabs; each has its own paginated series results. Seasons
+fallback when unavailable. Review cards show their uncertainty reasons without a
+coverage bar. Search filters all three tabs; each has its own paginated series
+results. Seasons
 are grouped before pagination, so a series never splits across pages. Tab counters
 still count missing/partial seasons, while page totals count series cards.
 
@@ -163,3 +168,17 @@ Keep this unauthenticated app on your trusted LAN or behind authenticated access
 Its write endpoints enforce JSON and same-origin browser requests, but LAN users
 with access can manage Lookout settings. No downloader or public-video adapter is
 implemented in this library milestone.
+
+## Multiple servers: current support
+
+The SFTP scanner currently accepts one SSH server with multiple folder roots.
+Sources have separate IDs, labels and scan status; these distinguish folders on
+that server. Multiple SSH storage servers are not yet supported by configuration.
+
+Several Jellyfin/Plex metadata connections can be saved and verified independently.
+Connections shows their kind, URL and path mappings. They enrich the existing
+inventory rather than create separate per-server copies or availability records.
+The overview and missing-season cards currently have no server badge, highlighting
+or server filter. A future multi-storage-server view needs explicit server identity,
+a server filter, and a choice between availability on the selected server and
+availability anywhere across connected servers.

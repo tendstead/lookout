@@ -130,3 +130,20 @@ PostgreSQL grouping/paging checks and lifecycle/audit checks. A fresh read-only
 review reported no findings. The same 24 browser cases passed on the LAN deployment;
 actual grouped phone and wide-screen cards were visually inspected. No new
 external dependency, migration or provider/notification behavior was introduced.
+
+## Consistent season lists — 2026-11-15
+
+Single and multiple missing/partial seasons now use the same labeled numeric chip
+list. The previous large season-number/count variants were removed. Chips preserve
+accessible Season N names, pressed state and explicitly labeled per-season coverage.
+Review cards retain their uncertainty treatment. Browser regressions were observed
+failing for the old single-season display, then all 24 desktop/mobile cases passed;
+Svelte/TypeScript reported zero errors and warnings, and production build/lifecycle
+checks passed. The independent reviewer was unavailable because of a service usage
+limit; the small diff was reviewed inline instead. Existing server support was
+verified from source and documented without adding inferred server identities.
+
+The deployed LAN service passed all 24 browser cases, and the refreshed phone
+screenshot was visually inspected. Read-only series/anime scans were refreshed
+when the freshness guard correctly classified the old inventory as needing review;
+normal comparison cards returned afterward. No NAS files were changed.

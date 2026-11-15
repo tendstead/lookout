@@ -33,7 +33,7 @@ frontend into the Go embedded directory; Node is absent from the final image.
 API failure, missing API routes, database outage, rejected startup and graceful
 shutdown. `make screenshots` refreshes the two README images from the running local
 instance; it also runs the browser tests. Use `BASE_URL` to select another instance.
-Screenshots contain no library files or credentials.
+Screenshots show library names/artwork or release schedules, never credentials or file contents.
 
 ## Dependencies and updates
 
@@ -57,4 +57,5 @@ translations become available. Lookout does not modify the sibling UI repository
 
 Browser runtime failures are collected in `web/test-results`. No external metadata
 provider credentials, NAS access, downloader or production-library fixtures are
-required for any foundation check.
+required for automated checks. Real Telegram verification uses only getMe/getChat/getChatMember;
+notification sends are tested against mock HTTP servers with disposable database state.

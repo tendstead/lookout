@@ -36,3 +36,11 @@ The dedicated `lookout-builder` container was inspected after its bounded build:
 Docker Memory and MemorySwap were both 2,147,483,648 bytes, CpuQuota 200,000 and
 CpuPeriod 100,000. It was stopped after building. Runtime and builder budgets are
 separate; see `scripts/check-builder-budget.sh`.
+
+## Library follow-up — 2026-11-15
+
+With 435 titles, 9,590 media entries and 11,079 cached episode records, a live idle
+sample reported 7.52 MiB container working set and 0.00% CPU. Hard limits remain
+128 MiB memory/total swap and one CPU. The integration override runs as nonroot
+1000:1000 to read the existing host key; read-only filesystem and mounts remain
+active. This sample is not a scan peak measurement or capacity promise.

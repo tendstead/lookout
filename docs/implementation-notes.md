@@ -1,7 +1,8 @@
-# Foundation execution notes — 2026-11-14
+# Foundation execution notes — 2026-11-14 (historical)
 
 Completed the [foundation plan](superpowers/plans/2026-11-14-lookout-foundation.md).
-Media catalogue/discovery/subscriptions are later milestones in the full design.
+The library milestone followed this foundation; see [library verification](library-verification.md)
+and [integration setup](library.md) for current behavior.
 
 ## Implementation decisions
 

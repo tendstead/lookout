@@ -10,6 +10,7 @@
   import Releases from './lib/Releases.svelte';
   let locale = $state<Locale>('en');
   let dark = $state(false);
+  let limitWidth = $state(false);
   let pathname = $state(window.location.pathname);
   let checking = $state(true);
   let service = $state<boolean | null>(null);
@@ -38,6 +39,11 @@
   const isConnections = $derived(pathname === '/connections');
   const isReleases = $derived(pathname === '/releases');
   const isDetail = $derived(pathname.startsWith('/titles/'));
+  const isGallery = $derived(isReleases || pathname === '/');
+  function toggleWidth() {
+    limitWidth = !limitWidth;
+    save('lookout.limitWidth', String(limitWidth));
+  }
   function save(key: string, value: string) {
     try {
       localStorage.setItem(key, value);
@@ -82,6 +88,7 @@
     try {
       locale = storedLocale(localStorage.getItem('lookout.locale'));
       dark = localStorage.getItem('lookout.theme') === 'dark';
+      limitWidth = localStorage.getItem('lookout.limitWidth') === 'true';
     } catch {
       /* use defaults */
     }
@@ -122,6 +129,15 @@
 >
   {#snippet pageActions()}
     <div class="preferences">
+      {#if isGallery}<button
+          class="width-button"
+          aria-label={t('limitWidth')}
+          aria-pressed={limitWidth}
+          title={t('limitWidthHint')}
+          onclick={toggleWidth}
+          ><Icon kind="library" size={18} /><span>{t('limitWidth')}</span
+          ></button
+        >{/if}
       <div class="language" role="group" aria-label={t('language')}>
         <button
           class:active={locale === 'en'}
@@ -141,7 +157,11 @@
       >
     </div>
   {/snippet}
-  <div class="page" class:release-page={isReleases}>
+  <div
+    class="page"
+    class:gallery-page={isGallery}
+    class:width-limited={isGallery && limitWidth}
+  >
     {#if !isSystem}
       {#if !isSources && !isDetail && !isConnections && !isReleases}<section
           class="intro"

@@ -89,7 +89,7 @@ test('catalogue browsing searches, filters and opens observed files', async ({
   );
   await page.goto('/');
   await expect(page.getByRole('link', { name: /Space Anime/ })).toBeVisible();
-  await page.getByRole('searchbox', { name: 'Search library' }).fill('Space');
+  await page.getByRole('combobox', { name: 'Search library' }).fill('Space');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await expect(page.getByRole('link', { name: /Example Film/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Anime series', exact: true }).click();

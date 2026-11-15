@@ -1,20 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import MissingSeasons from './MissingSeasons.svelte';
+  import UpcomingReleaseCard from './UpcomingReleaseCard.svelte';
+  import type { UpcomingEpisode } from './release-types';
   import { translate, type Locale, type Key } from './i18n';
   let { locale }: { locale: Locale } = $props();
   const t = (key: Key) => translate(locale, key);
-  type Episode = {
-    title_id: string;
-    title: string;
-    name: string;
-    season: number;
-    number: number | null;
-    scheduled_at: string;
-    air_date?: string;
-    precision: string;
-    url: string;
-  };
+  type Episode = UpcomingEpisode;
   type Event = Omit<Episode, 'scheduled_at'> & {
     id: number;
     kind: string;
@@ -134,41 +126,12 @@
     </ul>
   </details>{/if}
 <MissingSeasons {locale} />
-<section class="release-section">
-  <h3>{t('upcomingEpisodes')}</h3>
+<section class="release-section" aria-labelledby="upcoming-heading">
+  <h3 id="upcoming-heading">{t('upcomingEpisodes')}</h3>
   {#if !upcoming.length}<p class="metadata-note">{t('noUpcoming')}</p>{/if}
-  <ul class="release-list">
+  <ul class="upcoming-grid">
     {#each upcoming as episode}<li>
-        <div>
-          <a class="release-title" href={'/titles/' + episode.title_id}
-            >{episode.title}</a
-          >
-          <p>{episode.name}</p>
-          <small
-            >{episode.number !== null
-              ? t('season') +
-                ' ' +
-                episode.season +
-                ' · ' +
-                t('episode') +
-                ' ' +
-                episode.number
-              : t('special')}</small
-          >
-        </div>
-        <div class="release-date">
-          <time datetime={episode.scheduled_at}
-            >{date(
-              episode.scheduled_at,
-              episode.precision,
-              episode.air_date,
-            )}</time
-          >{#if episode.url}<a
-              href={safeURL(episode.url)}
-              target="_blank"
-              rel="noreferrer">TVmaze ↗</a
-            >{/if}
-        </div>
+        {#key episode.title_id}<UpcomingReleaseCard {episode} {locale} />{/key}
       </li>{/each}
   </ul>
 </section>

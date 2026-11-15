@@ -7,7 +7,9 @@ import (
 	"github.com/tendstead/lookout/internal/config"
 	"github.com/tendstead/lookout/internal/enrichment"
 	"github.com/tendstead/lookout/internal/httpapi"
+	"github.com/tendstead/lookout/internal/notify"
 	"github.com/tendstead/lookout/internal/store"
+	"github.com/tendstead/lookout/internal/tracking"
 	"log"
 	"net/http"
 	"os"
@@ -69,6 +71,14 @@ func run() error {
 	metadataService := enrichment.New(s, connectionKey)
 	metadataService.AllowPublic = os.Getenv("ALLOW_PUBLIC_METADATA") == "true"
 	go metadataService.Run(ctx)
+	telegramConfig, telegramErr := notify.Load(os.Getenv("TELEGRAM_CONFIG_FILE"))
+	if telegramErr != nil {
+		log.Print("Telegram configuration could not be loaded; notifications disabled")
+	}
+	telegramService := notify.New(s, telegramConfig, os.Getenv("TELEGRAM_DELIVERY_ENABLED") == "true")
+	go telegramService.Run(ctx)
+	releaseService := tracking.New(s, metadataService.TV, metadataService.AllowPublic, os.Getenv("FOLLOW_IMPORTED_SERIES") == "true", telegramService.Ready)
+	go releaseService.Run(ctx)
 	srv := &http.Server{Addr: cfg.ListenAddr, Handler: httpapi.NewHandler(s.Ping, frontendAssets(), httpapi.WithCatalogue(s, libraryService), httpapi.WithMetadata(metadataService)), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
 	done := make(chan error, 1)
 	go func() { done <- srv.ListenAndServe() }()

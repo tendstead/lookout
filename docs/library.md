@@ -83,8 +83,7 @@ TELEGRAM_DELIVERY_ENABLED=false
 
 The integration override runs as that nonroot UID so it can read existing private
 files without copying or relaxing their permissions. All integration mounts remain
-read-only. Recreate with `docker compose up -d --no-build --wait`. Sources scan hourly; use the Sources screen to request the first scan or a rescan. A single worker
-serializes scans. Failed, empty or suspiciously reduced scans retain the previous
+read-only. Recreate with `docker compose up -d --no-build --wait`. Sources scan on their server’s configurable interval (six hours by default); use the Sources screen to request the first scan or a rescan. Scans serialize within each SFTP host, with at most four simultaneous SFTP scans. Automatic API inventory has a separate two-job bound; the existing manual metadata worker processes one queued job. Failed, empty or suspiciously reduced scans retain the previous
 inventory instead of silently removing it. Missing observations remain inspectable.
 
 ## Inventory interpretation
@@ -208,16 +207,103 @@ Its write endpoints enforce JSON and same-origin browser requests, but LAN users
 with access can manage Lookout settings. No downloader or public-video adapter is
 implemented in this library milestone.
 
-## Multiple servers: current support
+## Multiple servers and availability
 
-The SFTP scanner currently accepts one SSH server with multiple folder roots.
-Sources have separate IDs, labels and scan status; these distinguish folders on
-that server. Multiple SSH storage servers are not yet supported by configuration.
+Use **Servers** to rename a logical server and set its scan interval (1–168 hours)
+and stale threshold (at least the scan interval, at most 720 hours). Defaults are
+six-hour scans and 24-hour freshness. User names survive restart/import and appear
+in badges, filters, detail pages and Wanted notifications. Suggested names come
+from Jellyfin/Plex when available, otherwise the hostname. A successful unchanged
+inventory scan refreshes freshness; credential verification does not.
 
-Several Jellyfin/Plex metadata connections can be saved and verified independently.
-Connections shows their kind, URL and path mappings. They enrich the existing
-inventory rather than create separate per-server copies or availability records.
-The overview and missing-season cards currently have no server badge, highlighting
-or server filter. A future multi-storage-server view needs explicit server identity,
-a server filter, and a choice between availability on the selected server and
-availability anywhere across connected servers.
+The existing `ssh`/`roots` configuration remains supported as server `legacy`.
+To add independent SFTP hosts, replace it with a `servers` array:
+
+```json
+{
+  "servers": [
+    {
+      "id": "home", "name": "Home NAS",
+      "ssh": {
+        "host": "home.example.lan", "port": 22, "user": "media-reader",
+        "key_file": "/run/secrets/ssh-key",
+        "known_hosts_file": "/run/secrets/ssh-known-hosts"
+      },
+      "roots": [
+        {"id":"home-films","label":"Films","path":"/media/Films","category":"movie"}
+      ]
+    },
+    {
+      "id": "family", "name": "Family NAS",
+      "ssh": {
+        "host": "family.example.lan", "port": 22, "user": "media-reader",
+        "key_file": "/run/lookout/family-key",
+        "known_hosts_file": "/run/lookout/family-known-hosts"
+      },
+      "roots": [
+        {"id":"family-films","label":"Films","path":"/media/Films","category":"movie"}
+      ]
+    }
+  ]
+}
+```
+
+Keep your existing four root IDs and paths when converting the current setup, and
+use `legacy` for its server ID. Source IDs are globally unique; identical absolute
+paths are allowed on different servers. Mount each existing key/known-hosts file
+read-only at the configured container path. Never weaken file permissions or host
+verification. SFTP credential setup remains private-file configuration; the Servers
+screen edits names and timing, not keys. Recreate the app after configuration changes.
+
+For **Jellyfin/Plex only**, save a connection with no path mappings and choose
+“Create a separate server.” Lookout imports real movie and episode entries through
+read-only APIs without SSH. A series record alone does not establish season coverage.
+API-reported paths are displayed when supplied; opaque stable item IDs are used when
+paths are hidden. These are inventory observations, not a media download/player.
+
+For **SFTP plus Jellyfin/Plex on the same storage**, select the existing server and
+add explicit path mappings. The API enriches the SFTP observations without creating
+another set of copies. Linking requires mappings; hostname resemblance is never
+used to infer shared storage. Existing mapped connections migrate to the existing
+server. Failed imports retry automatically with a one-hour minimum backoff.
+
+One catalogue card groups compatible provider identities across sources, within
+movie/series namespaces. All shared IDs must agree; matching names alone never
+merge titles. Overview and season comparisons have an All servers / selected server
+filter; detail pages list per-server copies, seasons and numbered files. Copies
+across servers contribute to combined episode coverage. Title detail → Title identity
+supports explicit merge by another title’s ID and splitting individual evidence back
+out; original source records, file paths and links remain intact. Merging keeps a title followed if any copy was followed; changing its follow setting affects the whole group. Pending history and delivered-event receipts survive merging/splitting. Compatible provider IDs
+and artwork enrich the representative. If any merged copy was followed, the unified
+title stays followed; changing its follow switch affects all copies. Durable provider
+event receipts prevent a merge/split from replaying already delivered alerts. Provider identity
+conflicts cannot be manually overridden by a merge.
+
+Last known copies remain visible after failures. Freshness is checked per inventory
+source, not inferred from another adapter’s successful request. Stale, failed or
+unconfirmed evidence is uncertain, never proof of absence. Servers without relevant
+configured categories do not block an unrelated movie/series Wanted result.
+
+## Wanted
+
+Use **Wanted** to add a movie or series, optional year, and optional season/episode.
+You can also add a library title from its detail page, retaining provider IDs.
+Manual entry and matching use your stored catalogue; no external search is required.
+Exact provider IDs are preferred; a unique title/year can match without IDs.
+Ambiguous identities/numbering require checking instead of a definite missing claim.
+
+A whole-series request means any episode; a season request means any numbered
+episode in that season; an episode request requires its explicit season/number.
+“Available” for a season is not a claim of completeness—use Missing seasons for
+comparison against expected aired episodes. Wanted shows server names and matched
+content. At least one fresh available copy establishes availability; otherwise any
+relevant stale/failed source makes absence uncertain.
+
+Adding a request establishes a quiet baseline for already observed copies. Later
+arrivals are durable and deduplicated by request, server and content. The first scan
+of a newly connected server may announce an existing Wanted request. Multiple new
+episodes are batched per request/server. Notifications include **Added on <server
+name>** and episode numbers where known. Renaming a server is not an arrival.
+Delivery uses the existing Telegram switch and retry handling; events observed
+while delivery is paused are retained as held, without historical replay. Telegram
+can still duplicate a message if it accepts it but the network loses its response.

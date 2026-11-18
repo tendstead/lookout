@@ -2,8 +2,10 @@
 
 A self-hosted overview for your films, series and public videos.
 
-Lookout inventories an existing NAS over read-only SFTP, browses films and series,
-and enriches them from Jellyfin/Plex and optional TVmaze lookups. Collections keep
+Lookout combines multiple servers into one media catalogue. Inventory can come
+from read-only SFTP, Jellyfin, Plex, or explicitly linked connections to the same
+storage. Cards show editable server names; filters and detail pages show where
+each movie or episode exists. Optional TVmaze lookups supply release schedules. Collections keep
 their existing folders; individual films appear as separate cards. ZIP-contained
 videos appear as archive members without extraction.
 
@@ -16,6 +18,11 @@ releases have their own calendar-style cards. Uncertain numbering stays separate
 for review. The first successful
 schedule fetch establishes a silent baseline. Optional Telegram alerts apply to
 future releases; verifying the bot/chat sends no test message.
+A **Wanted** list tracks movies, series, seasons and episodes across servers.
+Arrival notifications identify the server that added the requested content.
+Scans default to six hours, with a configurable 24-hour stale threshold; offline
+or stale inventory stays visible as uncertain rather than being treated as missing.
+
 Lookout does not download, play, move, rename or delete media.
 
 ## Run

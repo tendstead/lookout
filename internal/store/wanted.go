@@ -65,8 +65,12 @@ func (s *Store) AddWanted(ctx context.Context, v Wanted) (Wanted, error) {
 		return v, e
 	}
 	defer tx.Rollback(ctx)
-	if _, e = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(726431211)`); e != nil {
+	var locked bool
+	if e = tx.QueryRow(ctx, `SELECT pg_try_advisory_xact_lock(726431211)`).Scan(&locked); e != nil {
 		return v, e
+	}
+	if !locked {
+		return v, errors.New("Wanted is updating; retry shortly")
 	}
 	if e = tx.QueryRow(ctx, `INSERT INTO wanted_entries(name,category,year,provider_ids,season,episode) VALUES($1,$2,$3,$4,$5,$6) RETURNING id::text`, v.Name, v.Category, v.Year, raw, v.Season, v.Episode).Scan(&v.ID); e != nil {
 		return v, e
@@ -290,10 +294,14 @@ func (s *Store) RefreshWanted(ctx context.Context, notify bool) error {
 		return e
 	}
 	defer tx.Rollback(ctx)
-	if _, e = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(726431211)`); e != nil {
+	var locked bool
+	if e = tx.QueryRow(ctx, `SELECT pg_try_advisory_xact_lock(726431211)`).Scan(&locked); e != nil {
 		return e
 	}
-	items, e := s.ListWanted(ctx)
+	if !locked {
+		return nil
+	}
+	items, e := s.wantedEntries(ctx)
 	if e != nil {
 		return e
 	}

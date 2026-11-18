@@ -22,7 +22,10 @@ func (s *Store) EnsureSource(ctx context.Context, root library.Root) error {
 	if root.ServerID == "" {
 		root.ServerID = "legacy"
 	}
-	_, e := s.pool.Exec(ctx, `INSERT INTO library_sources(id,label,root_path,category,server_id) VALUES($1,$2,$3,$4,$5) ON CONFLICT(id) DO UPDATE SET label=excluded.label WHERE library_sources.root_path=excluded.root_path AND library_sources.category=excluded.category`, root.ID, root.Label, root.Path, root.Category, root.ServerID)
+	tag, e := s.pool.Exec(ctx, `INSERT INTO library_sources(id,label,root_path,category,server_id) VALUES($1,$2,$3,$4,$5) ON CONFLICT(id) DO UPDATE SET label=excluded.label WHERE library_sources.root_path=excluded.root_path AND library_sources.category=excluded.category AND library_sources.server_id=excluded.server_id`, root.ID, root.Label, root.Path, root.Category, root.ServerID)
+	if e == nil && tag.RowsAffected() == 0 {
+		return errors.New("source ID already belongs to another server, path or category")
+	}
 	return e
 }
 func (s *Store) StartScan(ctx context.Context, source string) (string, error) {

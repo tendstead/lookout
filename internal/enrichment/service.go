@@ -10,6 +10,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Report struct {
@@ -36,9 +37,21 @@ type Service struct {
 func New(s *store.Store, key []byte) *Service {
 	return &Service{Store: s, Key: key, TV: metadata.NewTVmaze(), queue: make(chan string, 2), artwork: make(chan struct{}, 2)}
 }
-func (s *Service) Status() Report     { s.mu.Lock(); defer s.mu.Unlock(); return s.report }
+func (s *Service) Status() Report {
+	s.inventoryMu.Lock()
+	active := len(s.active) > 0
+	s.inventoryMu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	r := s.report
+	r.Running = r.Running || active
+	return r
+}
 func (s *Service) setReport(r Report) { s.mu.Lock(); s.report = r; s.mu.Unlock() }
 func (s *Service) Queue(id string) error {
+	if s.Status().Running {
+		return errors.New("metadata worker busy")
+	}
 	if id == "official" && !s.AllowPublic {
 		return errors.New("public metadata lookups are disabled")
 	}
@@ -95,7 +108,7 @@ func (s *Service) validateMappings(ctx context.Context, c metadata.MediaServer) 
 	}
 	return nil
 }
-func (s *Service) ImportConnection(ctx context.Context, id string) (Report, error) {
+func (s *Service) ImportConnection(ctx context.Context, id string) (result Report, err error) {
 	s.inventoryMu.Lock()
 	if s.active == nil {
 		s.active = map[string]bool{}
@@ -107,6 +120,17 @@ func (s *Service) ImportConnection(ctx context.Context, id string) (Report, erro
 	s.active[id] = true
 	s.inventoryMu.Unlock()
 	defer func() { s.inventoryMu.Lock(); delete(s.active, id); s.inventoryMu.Unlock() }()
+	defer func() {
+		result.Running = false
+		result.Failed = err != nil
+		if err != nil {
+			cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			_ = s.Store.FailConnectionInventory(cleanup, id)
+			cancel()
+		}
+		s.setReport(result)
+	}()
+
 	if e := s.Store.ConnectionImportStarted(ctx, id); e != nil {
 		return Report{}, e
 	}
@@ -121,6 +145,11 @@ func (s *Service) ImportConnection(ctx context.Context, id string) (Report, erro
 	}
 	if e = c.Verify(ctx); e != nil {
 		_ = s.Store.ConnectionVerified(ctx, id, false)
+		cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if len(c.Mappings) == 0 {
+			_ = s.Store.FailConnectionInventory(cleanup, id)
+		}
 		return r, e
 	}
 	_ = s.Store.ConnectionVerified(ctx, id, true)
@@ -274,7 +303,10 @@ func (s *Service) Match(ctx context.Context, titleID, provider, id string) error
 	if e != nil {
 		return e
 	}
-	return s.Store.ApplyMetadata(ctx, titleID, store.MetadataUpdate{Candidate: candidate, Manual: true})
+	if e = s.Store.ApplyMetadata(ctx, titleID, store.MetadataUpdate{Candidate: candidate, Manual: true}); e != nil {
+		return e
+	}
+	return s.Store.ReconcileIdentities(ctx)
 }
 func (s *Service) SaveConnection(ctx context.Context, c metadata.MediaServer) (store.Connection, error) {
 	if len(s.Key) != 32 {

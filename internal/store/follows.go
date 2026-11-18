@@ -51,7 +51,7 @@ func (s *Store) SetFollow(ctx context.Context, id string, enabled bool, now time
 	}
 	defer tx.Rollback(ctx)
 	result, e := tx.Exec(ctx, `INSERT INTO release_follows(title_id,enabled,provider_id,baseline_at,next_refresh_at)
- SELECT id,$2,COALESCE(provider_ids->>'tvmaze',''),$3,$3 FROM library_titles WHERE id::text=$1 AND category IN('series','anime_series')
+ SELECT t.id,$2,COALESCE(t.provider_ids->>'tvmaze',''),$3,$3 FROM library_titles t JOIN title_identity i ON i.id=t.id WHERE i.canonical_id::text=$1 AND t.category IN('series','anime_series')
  ON CONFLICT(title_id) DO UPDATE SET enabled=excluded.enabled,provider_id=excluded.provider_id,
  initialized=CASE WHEN release_follows.provider_id<>excluded.provider_id OR NOT release_follows.enabled AND excluded.enabled THEN false ELSE release_follows.initialized END,
  baseline_at=CASE WHEN release_follows.provider_id<>excluded.provider_id OR NOT release_follows.enabled AND excluded.enabled THEN excluded.baseline_at ELSE release_follows.baseline_at END,next_refresh_at=excluded.next_refresh_at`, id, enabled, now)
@@ -62,7 +62,7 @@ func (s *Store) SetFollow(ctx context.Context, id string, enabled bool, now time
 		return ErrNotFound
 	}
 	if !enabled {
-		_, e = tx.Exec(ctx, `UPDATE notification_outbox o SET status='cancelled' FROM release_events e WHERE o.event_id=e.id AND e.title_id::text=$1 AND o.status IN('pending','retry')`, id)
+		_, e = tx.Exec(ctx, `UPDATE notification_outbox o SET status='cancelled' FROM release_events e WHERE o.event_id=e.id AND e.title_id IN(SELECT id FROM title_identity WHERE canonical_id::text=$1) AND o.status IN('pending','retry')`, id)
 		if e != nil {
 			return e
 		}

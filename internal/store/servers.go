@@ -87,3 +87,7 @@ func (s *Store) ReportedPath(ctx context.Context, source, key, path string) erro
 	_, e := s.pool.Exec(ctx, `UPDATE library_files SET reported_path=$3 WHERE source_id=$1 AND relative_path=$2`, source, key, path)
 	return e
 }
+func (s *Store) FailConnectionInventory(ctx context.Context, id string) error {
+	_, e := s.pool.Exec(ctx, `UPDATE library_sources SET status='error',last_error='API inventory unavailable; last known copies retained' WHERE adapter IN('jellyfin','plex') AND id IN($1,$2)`, "api-"+id+"-movie", "api-"+id+"-series")
+	return e
+}

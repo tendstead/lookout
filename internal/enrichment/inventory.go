@@ -12,8 +12,8 @@ import (
 )
 
 func inventorySource(id, kind string) string { return "api-" + id + "-" + kind }
-func (s *Service) ImportInventory(ctx context.Context, id string, c metadata.MediaServer) (Report, error) {
-	r := Report{Phase: "inventory", Running: true}
+func (s *Service) ImportInventory(ctx context.Context, id string, c metadata.MediaServer) (r Report, err error) {
+	r = Report{Phase: "inventory", Running: true}
 	if c.ServerID == "" {
 		return r, errors.New("assign this connection to a server first")
 	}
@@ -22,6 +22,25 @@ func (s *Service) ImportInventory(ctx context.Context, id string, c metadata.Med
 	}
 	scans := map[string]string{}
 	counts := map[string]int{}
+	defer func() {
+		for kind, scan := range scans {
+			finish, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			save := s.Store.FinishScan(finish, scan, inventorySource(id, kind), library.ScanStats{Media: counts[kind]}, err)
+			cancel()
+			if save != nil && err == nil {
+				err = save
+			}
+		}
+		if err == nil {
+			err = s.Store.ReconcileIdentities(ctx)
+			if err == nil {
+				err = s.Store.ConnectionImportFinished(ctx, id)
+			}
+		}
+		r.Running = false
+		r.Failed = err != nil
+	}()
+
 	for _, kind := range []string{"movie", "series"} {
 		source := inventorySource(id, kind)
 		if e := s.Store.EnsureSource(ctx, library.Root{ID: source, ServerID: c.ServerID, Label: c.Kind + " " + kind, Path: "/api/" + id + "/" + kind, Category: kind}); e != nil {
@@ -36,14 +55,14 @@ func (s *Service) ImportInventory(ctx context.Context, id string, c metadata.Med
 		}
 		scans[kind] = scan
 	}
-	err := c.Inventory(ctx, func(item metadata.InventoryItem) error {
+	err = c.Inventory(ctx, func(item metadata.InventoryItem) error {
 		kind := item.Title.Kind
 		scan, ok := scans[kind]
 		if !ok {
 			return errors.New("unsupported media inventory type")
 		}
 		numbering := "unknown"
-		if len(item.Episodes) > 0 {
+		if item.SeasonKnown && len(item.Episodes) > 0 {
 			numbering = "season_episode"
 		}
 		// Item IDs are stable even when a provider hides physical paths. Each API
@@ -71,22 +90,6 @@ func (s *Service) ImportInventory(ctx context.Context, id string, c metadata.Med
 		r.Matched++
 		return nil
 	})
-	for kind, scan := range scans {
-		finish, e := context.WithTimeout(context.Background(), 10*time.Second)
-		save := s.Store.FinishScan(finish, scan, inventorySource(id, kind), library.ScanStats{Media: counts[kind]}, err)
-		e()
-		if save != nil && err == nil {
-			err = save
-		}
-	}
-	if err == nil {
-		err = s.Store.ReconcileIdentities(ctx)
-		if err == nil {
-			err = s.Store.ConnectionImportFinished(ctx, id)
-		}
-	}
-	r.Running = false
-	r.Failed = err != nil
 	return r, err
 }
 

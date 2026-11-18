@@ -17,3 +17,10 @@ UPDATE metadata_connections SET server_id='legacy' WHERE jsonb_array_length(path
 ALTER TABLE metadata_connections ADD COLUMN last_import_attempt timestamptz;
 ALTER TABLE metadata_connections ADD COLUMN last_import_success timestamptz;
 ALTER TABLE library_files ADD COLUMN reported_path text NOT NULL DEFAULT '';
+CREATE TABLE release_delivery_receipts (
+ show_id text NOT NULL,episode_id text NOT NULL,kind text NOT NULL,sent_at timestamptz NOT NULL,
+ PRIMARY KEY(show_id,episode_id,kind)
+);
+INSERT INTO release_delivery_receipts(show_id,episode_id,kind,sent_at)
+ SELECT e.show_id,e.episode_id,e.kind,min(o.sent_at) FROM notification_outbox o JOIN release_events e ON e.id=o.event_id
+ WHERE o.status='delivered' AND o.sent_at IS NOT NULL GROUP BY e.show_id,e.episode_id,e.kind;

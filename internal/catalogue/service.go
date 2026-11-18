@@ -96,6 +96,9 @@ func New(ctx context.Context, s *store.Store, c Config) (*Service, error) {
 	if e := s.RecoverScans(ctx); e != nil {
 		return nil, e
 	}
+	if e := s.ReconcileIdentities(ctx); e != nil {
+		return nil, e
+	}
 	return &Service{store: s, config: c, queue: make(chan string, 16), pending: map[string]bool{}}, nil
 }
 func (s *Service) RequestScan(id string) error {

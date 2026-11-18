@@ -54,3 +54,24 @@ func TestPlexInventoryIncludesActualEpisodes(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestMissingSeasonIsNotConfirmedSeasonZero(t *testing.T) {
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("IncludeItemTypes") == "Episode" {
+			w.Write([]byte(`{"TotalRecordCount":1,"Items":[{"Id":"ep","IndexNumber":1}]}`))
+			return
+		}
+		w.Write([]byte(`{"TotalRecordCount":1,"Items":[{"Id":"show","Name":"Show","Type":"Series"}]}`))
+	}))
+	defer api.Close()
+	p := MediaServer{Kind: "jellyfin", BaseURL: api.URL, Token: "fixture"}
+	if e := p.Inventory(context.Background(), func(v InventoryItem) error {
+		if v.SeasonKnown {
+			t.Fatal("missing season confirmed")
+		}
+		return nil
+	}); e != nil {
+		t.Fatal(e)
+	}
+}

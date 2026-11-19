@@ -40,9 +40,11 @@ server. Language and theme are saved separately on each device.
 
 ## Screenshots
 
+Lookout shown with demo data.
+
 | Desktop | Phone |
 | --- | --- |
-| ![Lookout desktop library with metadata and cover artwork](docs/screenshots/desktop.png) | ![Lookout mobile upcoming releases with calendar dates and artwork](docs/screenshots/mobile.png) |
+| ![Lookout desktop library with fictional titles and cover artwork](docs/screenshots/desktop.png) | ![Lookout on a phone showing episode gaps in a demo season](docs/screenshots/mobile.png) |
 
 Configure [read-only library and integrations](docs/library.md). See [deployment](docs/deployment.md), [API](docs/api.md), and
 [development and checks](docs/development.md) for more details.

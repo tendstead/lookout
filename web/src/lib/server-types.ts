@@ -1,6 +1,7 @@
 export type Server = {
   id: string;
   name: string;
+  type?: 'jellyfin' | 'plex' | 'sftp' | 'ssh';
   scan_hours: number;
   stale_hours: number;
   status: string;

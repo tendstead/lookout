@@ -3,6 +3,7 @@ module github.com/tendstead/lookout
 go 1.27.4
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/jackc/pgx/v5 v5.13.0
 	github.com/pkg/sftp v1.13.12
 	golang.org/x/crypto v0.59.0

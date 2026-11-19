@@ -19,6 +19,17 @@ func jsonResponse(w http.ResponseWriter, code int, value any) {
 func apiError(w http.ResponseWriter, code int, id, message string) {
 	jsonResponse(w, code, map[string]any{"error": map[string]string{"code": id, "message": message}})
 }
+func WithReadOnly() Option {
+	return func(o *apiOptions) { o.readOnly = true }
+}
+
+func WithConfiguredSources(types map[string]string, sourceIDs []string) Option {
+	return func(o *apiOptions) {
+		o.serverTypes = types
+		o.sourceIDs = sourceIDs
+	}
+}
+
 func NewHandler(checkReady func(context.Context) error, assets fs.FS, options ...Option) http.Handler {
 	var opts apiOptions
 	for _, option := range options {
@@ -38,6 +49,11 @@ func NewHandler(checkReady func(context.Context) error, assets fs.FS, options ..
 		isAPI := r.URL.Path == "/api" || strings.HasPrefix(r.URL.Path, "/api/")
 		if !isHealth && !isAPI {
 			serveStatic(w, r, assets)
+			return
+		}
+		if isAPI && opts.readOnly && r.Method != http.MethodGet && r.Method != http.MethodHead {
+			w.Header().Set("Allow", "GET, HEAD")
+			apiError(w, http.StatusMethodNotAllowed, "read_only", "Lookout is read-only. Manage server settings in lookout.toml.")
 			return
 		}
 		if isAPI && opts.serveReleases(w, r) {
@@ -63,7 +79,7 @@ func NewHandler(checkReady func(context.Context) error, assets fs.FS, options ..
 			if opts.catalogue != nil {
 				stage = "catalogue"
 			}
-			jsonResponse(w, 200, map[string]string{"service": "lookout", "stage": stage})
+			jsonResponse(w, 200, map[string]any{"service": "lookout", "stage": stage, "read_only": opts.readOnly})
 			return
 		}
 		status := "ok"

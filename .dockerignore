@@ -7,3 +7,6 @@ web/test-results
 web/playwright-report
 docs/screenshots
 cmd/server/static
+
+lookout-config
+lookout.toml

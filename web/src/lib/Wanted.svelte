@@ -17,7 +17,7 @@
       content: string[];
     }[];
   };
-  let { locale }: { locale: Locale } = $props();
+  let { locale, readOnly }: { locale: Locale; readOnly: boolean } = $props();
   const t = (key: Key) => translate(locale, key);
   let items = $state<Entry[]>([]);
   let name = $state('');
@@ -87,53 +87,53 @@
   <p>{t('wantedHint')}</p>
 </section>
 {#if failed}<p role="alert">{t('libraryError')}</p>{/if}
-<form
-  class="source-card connection-form wanted-form"
-  onsubmit={(e) => {
-    e.preventDefault();
-    void add();
-  }}
->
-  <label
-    >{t('wantedTitle')}<input
-      bind:value={name}
-      required
-      maxlength="300"
-    /></label
+{#if !readOnly}<form
+    class="source-card connection-form wanted-form"
+    onsubmit={(e) => {
+      e.preventDefault();
+      void add();
+    }}
   >
-  <label
-    >{t('serverType')}<select bind:value={category}
-      ><option value="movie">{t('movieCategory')}</option><option value="series"
-        >{t('seriesCategory')}</option
-      ></select
-    ></label
-  >
-  <label
-    >{t('wantedYear')}<input
-      type="number"
-      min="1800"
-      max="3000"
-      bind:value={year}
-    /></label
-  >
-  {#if category === 'series'}<label
-      >{t('wantedSeason')}<input
-        type="number"
-        min="0"
-        max="1000"
-        bind:value={season}
+    <label
+      >{t('wantedTitle')}<input
+        bind:value={name}
+        required
+        maxlength="300"
       /></label
-    ><label
-      >{t('wantedEpisode')}<input
+    >
+    <label
+      >{t('serverType')}<select bind:value={category}
+        ><option value="movie">{t('movieCategory')}</option><option
+          value="series">{t('seriesCategory')}</option
+        ></select
+      ></label
+    >
+    <label
+      >{t('wantedYear')}<input
         type="number"
-        min="1"
-        max="100000"
-        bind:value={episode}
-        disabled={season === undefined}
+        min="1800"
+        max="3000"
+        bind:value={year}
       /></label
-    >{/if}
-  <button class="catalogue-button" disabled={busy}>{t('addWanted')}</button>
-</form>
+    >
+    {#if category === 'series'}<label
+        >{t('wantedSeason')}<input
+          type="number"
+          min="0"
+          max="1000"
+          bind:value={season}
+        /></label
+      ><label
+        >{t('wantedEpisode')}<input
+          type="number"
+          min="1"
+          max="100000"
+          bind:value={episode}
+          disabled={season === undefined}
+        /></label
+      >{/if}
+    <button class="catalogue-button" disabled={busy}>{t('addWanted')}</button>
+  </form>{/if}
 <div class="source-list">
   {#each items as item}<article class="source-card wanted-card">
       <h3>{item.name}{item.year ? ' (' + item.year + ')' : ''}</h3>
@@ -153,10 +153,10 @@
                 : ''}
             </p>{/if}
         </div>{/each}
-      <button
-        class="text-button"
-        disabled={busy}
-        onclick={() => void remove(item.id)}>{t('removeWanted')}</button
-      >
+      {#if !readOnly}<button
+          class="text-button"
+          disabled={busy}
+          onclick={() => void remove(item.id)}>{t('removeWanted')}</button
+        >{/if}
     </article>{/each}
 </div>

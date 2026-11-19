@@ -48,7 +48,11 @@ func Load(file string) (*Config, error) {
 		}
 		chat = n.String()
 	}
-	token := strings.TrimSpace(raw.Token)
+	return NewConfig(raw.Token, chat)
+}
+
+func NewConfig(token, chat string) (*Config, error) {
+	token = strings.TrimSpace(token)
 	chat = strings.TrimSpace(chat)
 	if !regexp.MustCompile(`^[0-9]+:[A-Za-z0-9_-]+$`).MatchString(token) || len(token) > 1024 || !regexp.MustCompile(`^(-?[0-9]+|@[A-Za-z0-9_]+)$`).MatchString(chat) {
 		return nil, errors.New("invalid Telegram credentials")

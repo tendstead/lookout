@@ -25,14 +25,31 @@ type Connection struct {
 }
 
 func (s *Store) SaveConnection(ctx context.Context, c metadata.MediaServer, key []byte) (Connection, error) {
+	if err := c.Validate(); err != nil {
+		return Connection{}, err
+	}
+	sealed, err := secrets.Seal(key, []byte(c.Token))
+	if err != nil {
+		return Connection{}, err
+	}
+	return s.saveConnection(ctx, c, sealed)
+}
+
+// ConfigureConnection reserves the existing connection identity for a TOML entry.
+// Its token is supplied by the caller at runtime. Any legacy ciphertext is retained.
+func (s *Store) ConfigureConnection(ctx context.Context, c metadata.MediaServer) (string, error) {
+	if err := c.Validate(); err != nil {
+		return "", err
+	}
+	if c.ServerID == "" {
+		return "", errors.New("configured connections require a stable server ID")
+	}
+	v, err := s.saveConnection(ctx, c, nil)
+	return v.ID, err
+}
+
+func (s *Store) saveConnection(ctx context.Context, c metadata.MediaServer, sealed []byte) (Connection, error) {
 	var out Connection
-	if e := c.Validate(); e != nil {
-		return out, e
-	}
-	sealed, e := secrets.Seal(key, []byte(c.Token))
-	if e != nil {
-		return out, e
-	}
 	if c.Mappings == nil {
 		c.Mappings = []metadata.PathMapping{}
 	}
@@ -57,14 +74,28 @@ func (s *Store) SaveConnection(ctx context.Context, c metadata.MediaServer, key 
 		c.ServerID = host
 	}
 	var existingID, existingServer string
+	var count int
 	e = tx.QueryRow(ctx, `SELECT id::text,COALESCE(server_id,'') FROM metadata_connections WHERE kind=$1 AND base_url=$2`, c.Kind, c.BaseURL).Scan(&existingID, &existingServer)
 	if e != nil && !errors.Is(e, pgx.ErrNoRows) {
 		return out, e
 	}
+	if sealed == nil && existingID == "" {
+		// Retain the inventory and artwork identity when a configured URL changes.
+		e = tx.QueryRow(ctx, `SELECT COALESCE(min(id::text),''),count(*) FROM metadata_connections WHERE kind=$1 AND server_id=$2`, c.Kind, c.ServerID).Scan(&existingID, &count)
+		if e != nil {
+			return out, e
+		}
+		if count > 1 {
+			return out, errors.New("multiple existing connections for server; use its existing URL")
+		}
+		if existingID != "" {
+			existingServer = c.ServerID
+		}
+	}
 	if c.ServerID == "" && existingServer != "" {
 		c.ServerID = existingServer
 	}
-	if c.ServerID != "" && len(c.Mappings) == 0 {
+	if sealed != nil && c.ServerID != "" && len(c.Mappings) == 0 {
 		var hasSFTP bool
 		if e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM library_sources WHERE server_id=$1 AND adapter='sftp')`, c.ServerID).Scan(&hasSFTP); e != nil {
 			return out, e
@@ -76,7 +107,15 @@ func (s *Store) SaveConnection(ctx context.Context, c metadata.MediaServer, key 
 	if existingServer != "" && c.ServerID != "" && existingServer != c.ServerID {
 		return out, errors.New("existing inventory server cannot be reassigned")
 	}
-	e = tx.QueryRow(ctx, `INSERT INTO metadata_connections(kind,base_url,token_cipher,path_mappings) VALUES($1,$2,$3,$4) ON CONFLICT(kind,base_url) DO UPDATE SET token_cipher=excluded.token_cipher,path_mappings=excluded.path_mappings,verified=false,last_error='' RETURNING id::text`, c.Kind, c.BaseURL, sealed, raw).Scan(&out.ID)
+	switch {
+	case sealed != nil:
+		e = tx.QueryRow(ctx, `INSERT INTO metadata_connections(kind,base_url,token_cipher,path_mappings) VALUES($1,$2,$3,$4) ON CONFLICT(kind,base_url) DO UPDATE SET token_cipher=excluded.token_cipher,path_mappings=excluded.path_mappings,verified=false,last_error='' RETURNING id::text`, c.Kind, c.BaseURL, sealed, raw).Scan(&out.ID)
+	case existingID == "":
+		e = tx.QueryRow(ctx, `INSERT INTO metadata_connections(kind,base_url,token_cipher,path_mappings) VALUES($1,$2,''::bytea,$3) RETURNING id::text`, c.Kind, c.BaseURL, raw).Scan(&out.ID)
+	default:
+		out.ID = existingID
+		_, e = tx.Exec(ctx, `UPDATE metadata_connections SET token_cipher=CASE WHEN base_url=$2 THEN token_cipher ELSE ''::bytea END,base_url=$2,path_mappings=$3,verified=false,last_error='',checked_at=NULL WHERE id::text=$1`, out.ID, c.BaseURL, raw)
+	}
 	if e != nil {
 		return out, e
 	}
@@ -101,7 +140,7 @@ func (s *Store) SaveConnection(ctx context.Context, c metadata.MediaServer, key 
 	return out, nil
 }
 func (s *Store) Connections(ctx context.Context) ([]Connection, error) {
-	rows, e := s.pool.Query(ctx, "SELECT id::text,kind,base_url,path_mappings,verified,last_error,checked_at,COALESCE(server_id,'') FROM metadata_connections ORDER BY kind,base_url")
+	rows, e := s.pool.Query(ctx, "SELECT id::text,kind,base_url,path_mappings,verified,last_error,checked_at,COALESCE(server_id,''),octet_length(token_cipher)>0 FROM metadata_connections ORDER BY kind,base_url")
 	if e != nil {
 		return nil, e
 	}
@@ -110,13 +149,12 @@ func (s *Store) Connections(ctx context.Context) ([]Connection, error) {
 	for rows.Next() {
 		var c Connection
 		var raw []byte
-		if e = rows.Scan(&c.ID, &c.Kind, &c.BaseURL, &raw, &c.Verified, &c.LastError, &c.CheckedAt, &c.ServerID); e != nil {
+		if e = rows.Scan(&c.ID, &c.Kind, &c.BaseURL, &raw, &c.Verified, &c.LastError, &c.CheckedAt, &c.ServerID, &c.TokenConfigured); e != nil {
 			return nil, e
 		}
 		if e = json.Unmarshal(raw, &c.Mappings); e != nil {
 			return nil, e
 		}
-		c.TokenConfigured = true
 		out = append(out, c)
 	}
 	return out, rows.Err()

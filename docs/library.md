@@ -1,5 +1,8 @@
 # Library and integrations
 
+For the single-file TOML deployment, see [Configure Lookout](configuration.md).
+The environment, JSON, and browser setup steps below describe the legacy deployment.
+
 SFTP transfers files over an authenticated SSH connection. Lookout uses its native
 SFTP client for directory listings, file attributes and bounded sidecar/archive
 reads. It verifies the server against an existing known_hosts file, skips symlinks

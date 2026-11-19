@@ -1,7 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { translate, type Locale, type Key } from './i18n';
-  let { locale, titleID }: { locale: Locale; titleID: string } = $props();
+  let {
+    locale,
+    titleID,
+    readOnly,
+  }: { locale: Locale; titleID: string; readOnly: boolean } = $props();
   const t = (key: Key) => translate(locale, key);
   let enabled = $state(false);
   let initialized = $state(false);
@@ -49,14 +53,14 @@
   });
 </script>
 
-{#if ready}<section class="follow-controls">
-    <button
-      class="catalogue-button"
-      aria-pressed={enabled}
-      disabled={busy}
-      onclick={() => void toggle()}
-      >{enabled ? t('unfollowReleases') : t('followReleases')}</button
-    >
+{#if ready && (enabled || !readOnly)}<section class="follow-controls">
+    {#if !readOnly}<button
+        class="catalogue-button"
+        aria-pressed={enabled}
+        disabled={busy}
+        onclick={() => void toggle()}
+        >{enabled ? t('unfollowReleases') : t('followReleases')}</button
+      >{/if}
     <p class="metadata-note">
       {enabled
         ? t('followingReleases')

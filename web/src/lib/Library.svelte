@@ -52,9 +52,11 @@
   let {
     locale,
     mode = 'overview',
+    readOnly,
     titleID = '',
   }: {
     locale: Locale;
+    readOnly: boolean;
     mode?: 'overview' | 'sources' | 'detail';
     titleID?: string;
   } = $props();
@@ -237,12 +239,12 @@
         </p>
         {#if source.last_error}<p class="source-warning">
             {source.last_error}
-          </p>{/if}<button
-          class="catalogue-button"
-          disabled={source.status === 'scanning'}
-          onclick={() => void scan(source.id)}
-          ><Icon kind="refresh" size={16} />{t('scanNow')}</button
-        >
+          </p>{/if}{#if !readOnly}<button
+            class="catalogue-button"
+            disabled={source.status === 'scanning'}
+            onclick={() => void scan(source.id)}
+            ><Icon kind="refresh" size={16} />{t('scanNow')}</button
+          >{/if}
       </article>{/each}
   </div>
   {#if !loading && !sources.length}<p>{t('sourceEmpty')}</p>{/if}
@@ -277,11 +279,12 @@
         </p>{/if}{#if detail.category === 'series' || detail.category === 'anime_series'}<Follow
           {locale}
           titleID={detail.id}
-        /><MetadataReview
-          {locale}
-          titleID={detail.id}
-          name={detail.name}
-        />{/if}
+          {readOnly}
+        />{#if !readOnly}<MetadataReview
+            {locale}
+            titleID={detail.id}
+            name={detail.name}
+          />{/if}{/if}
       <h3>{t('serverCopies')}</h3>
       <div class="source-list">
         {#each detail.servers || [] as host}<article class="source-card">
@@ -304,30 +307,33 @@
             </p>
           </article>{/each}
       </div>
-      <button class="catalogue-button" onclick={() => void wanted()}
-        >{t('addWanted')}</button
-      >
-      <details class="source-card">
-        <summary>{t('identityReview')}</summary>
-        <p>{t('identityHint')}</p>
-        <form
-          onsubmit={(e) => {
-            e.preventDefault();
-            if (detail) void identity(detail.id, mergeID);
-          }}
+      {#if !readOnly}<button
+          class="catalogue-button"
+          onclick={() => void wanted()}>{t('addWanted')}</button
         >
-          <label>{t('mergeTitle')}<input bind:value={mergeID} required /></label
-          ><button class="catalogue-button">{t('saveSettings')}</button>
-        </form>
-        {#each detail.members || [] as member}<p>
-            {member.source_id} · <code>{member.id}</code>
-            <button
-              class="text-button"
-              onclick={() => void identity(member.id, '')}
-              >{t('splitTitle')}</button
-            >
-          </p>{/each}
-      </details>
+        <details class="source-card">
+          <summary>{t('identityReview')}</summary>
+          <p>{t('identityHint')}</p>
+          <form
+            onsubmit={(e) => {
+              e.preventDefault();
+              if (detail) void identity(detail.id, mergeID);
+            }}
+          >
+            <label
+              >{t('mergeTitle')}<input bind:value={mergeID} required /></label
+            ><button class="catalogue-button">{t('saveSettings')}</button>
+          </form>
+          {#each detail.members || [] as member}<p>
+              {member.source_id} · <code>{member.id}</code>
+              <button
+                class="text-button"
+                onclick={() => void identity(member.id, '')}
+                >{t('splitTitle')}</button
+              >
+            </p>{/each}
+        </details>
+      {/if}
       <h3>{t('observedFiles')}</h3>
       {#if detail.files.some((f) => f.storage === 'zip')}<p
           class="metadata-note"

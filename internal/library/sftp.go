@@ -19,6 +19,7 @@ type SSHConfig struct {
 	Host           string `json:"host"`
 	Port           int    `json:"port"`
 	User           string `json:"user"`
+	Password       string `json:"-"`
 	KeyFile        string `json:"key_file"`
 	KnownHostsFile string `json:"known_hosts_file"`
 }
@@ -28,43 +29,57 @@ type SFTPReader struct {
 	stop   func() bool
 }
 
-func Connect(ctx context.Context, c SSHConfig) (*SFTPReader, error) {
+func dialSSH(ctx context.Context, c SSHConfig) (*ssh.Client, func() bool, error) {
 	if c.Port == 0 {
 		c.Port = 22
 	}
 	if c.Host == "" || c.User == "" || c.Port < 1 || c.Port > 65535 {
-		return nil, errors.New("invalid SSH connection settings")
+		return nil, nil, errors.New("invalid SSH connection settings")
 	}
-	key, e := os.ReadFile(c.KeyFile)
-	if e != nil {
-		return nil, errors.New("SSH key unavailable")
+	if (c.KeyFile == "") == (c.Password == "") {
+		return nil, nil, errors.New("choose one SSH authentication method")
 	}
-	signer, e := ssh.ParsePrivateKey(key)
-	if e != nil {
-		return nil, errors.New("SSH key could not be loaded; encrypted keys require an unlocked supported key")
-	}
-	for i := range key {
-		key[i] = 0
+	var auth ssh.AuthMethod
+	if c.Password != "" {
+		auth = ssh.Password(c.Password)
+	} else {
+		key, err := os.ReadFile(c.KeyFile)
+		if err != nil {
+			return nil, nil, errors.New("SSH key unavailable")
+		}
+		signer, err := ssh.ParsePrivateKey(key)
+		clear(key)
+		if err != nil {
+			return nil, nil, errors.New("SSH key could not be loaded; provide an unencrypted private key")
+		}
+		auth = ssh.PublicKeys(signer)
 	}
 	hostkey, e := knownhosts.New(c.KnownHostsFile)
 	if e != nil {
-		return nil, errors.New("known-host verification configuration unavailable")
+		return nil, nil, errors.New("known-host verification configuration unavailable")
 	}
 	addr := net.JoinHostPort(c.Host, strconv.Itoa(c.Port))
 	conn, e := (&net.Dialer{Timeout: 10 * time.Second}).DialContext(ctx, "tcp", addr)
 	if e != nil {
-		return nil, errors.New("SSH host unreachable")
+		return nil, nil, errors.New("SSH host unreachable")
 	}
 	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
 	_ = conn.SetDeadline(time.Now().Add(15 * time.Second))
-	sc, ch, req, e := ssh.NewClientConn(conn, addr, &ssh.ClientConfig{User: c.User, Auth: []ssh.AuthMethod{ssh.PublicKeys(signer)}, HostKeyCallback: hostkey, Timeout: 10 * time.Second})
+	sc, ch, req, e := ssh.NewClientConn(conn, addr, &ssh.ClientConfig{User: c.User, Auth: []ssh.AuthMethod{auth}, HostKeyCallback: hostkey, Timeout: 10 * time.Second})
 	if e != nil {
 		stop()
 		conn.Close()
-		return nil, errors.New("SSH authentication or host-key verification failed")
+		return nil, nil, errors.New("SSH authentication or host-key verification failed")
 	}
 	_ = conn.SetDeadline(time.Time{})
-	client := ssh.NewClient(sc, ch, req)
+	return ssh.NewClient(sc, ch, req), stop, nil
+}
+
+func Connect(ctx context.Context, c SSHConfig) (*SFTPReader, error) {
+	client, stop, e := dialSSH(ctx, c)
+	if e != nil {
+		return nil, e
+	}
 	s, e := sftp.NewClient(client, sftp.MaxConcurrentRequestsPerFile(1))
 	if e != nil {
 		stop()

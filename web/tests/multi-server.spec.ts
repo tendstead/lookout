@@ -76,3 +76,53 @@ test('wanted entries show the server supplying requested content', async ({
     ),
   ).toBe(true);
 });
+
+test('read-only views show inventory type and hide shared writes', async ({
+  page,
+}) => {
+  await page.route('**/api/v1/status', (r) =>
+    r.fulfill({ json: { read_only: true } }),
+  );
+  await page.route('**/api/v1/servers', (r) =>
+    r.fulfill({
+      json: {
+        items: [
+          {
+            id: 'home',
+            name: 'Home NAS',
+            type: 'ssh',
+            scan_hours: 6,
+            stale_hours: 24,
+            status: 'ready',
+            last_success: null,
+          },
+        ],
+      },
+    }),
+  );
+  await page.route('**/api/v1/wanted', (r) =>
+    r.fulfill({
+      json: {
+        items: [
+          {
+            id: 'request',
+            name: 'Dune',
+            status: 'available',
+            servers: [],
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto('/servers');
+  await expect(page.getByRole('heading', { name: 'Home NAS' })).toBeVisible();
+  await expect(page.getByText('SSH', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save settings' })).toHaveCount(
+    0,
+  );
+  await page.goto('/wanted');
+  await expect(page.getByRole('heading', { name: 'Dune' })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /Add to Wanted|Remove from Wanted/ }),
+  ).toHaveCount(0);
+});

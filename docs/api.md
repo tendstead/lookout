@@ -1,5 +1,10 @@
 # API
 
+TOML deployments report `read_only: true` from `GET /api/v1/status` and
+reject API methods other than GET and HEAD with `405 read_only`.
+Configured server records include `type` (`jellyfin`, `plex`, `sftp`, or `ssh`).
+The write endpoints below are available in legacy deployments.
+
 See the [OpenAPI endpoint reference](openapi.yaml). The app has no login and must
 be limited to trusted users. Writes require POST, `Content-Type: application/json`
 and a same-origin browser request. Actions with no parameters take `{}`. Queued

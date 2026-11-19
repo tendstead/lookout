@@ -32,11 +32,50 @@ type Service struct {
 	queue       chan string
 	inventoryMu sync.Mutex
 	active      map[string]bool
+	configured  map[string]metadata.MediaServer
 }
 
 func New(s *store.Store, key []byte) *Service {
 	return &Service{Store: s, Key: key, TV: metadata.NewTVmaze(), queue: make(chan string, 2), artwork: make(chan struct{}, 2)}
 }
+
+// ConfigureConnections is called once before the workers and HTTP handlers start.
+func (s *Service) ConfigureConnections(ctx context.Context, entries []metadata.MediaServer) ([]string, error) {
+	sources := []string{}
+	configured := make(map[string]metadata.MediaServer, len(entries))
+	for _, c := range entries {
+		if err := s.validateMappings(ctx, c); err != nil {
+			return nil, err
+		}
+		id, err := s.Store.ConfigureConnection(ctx, c)
+		if err != nil {
+			return nil, err
+		}
+		if len(c.Mappings) == 0 {
+			for _, kind := range []string{"movie", "series"} {
+				source, err := s.ensureInventorySource(ctx, id, kind, c)
+				if err != nil {
+					return nil, err
+				}
+				sources = append(sources, source)
+			}
+		}
+		configured[id] = c
+	}
+	s.configured = configured
+	return sources, nil
+}
+
+func (s *Service) connectionConfig(ctx context.Context, id string) (metadata.MediaServer, error) {
+	if s.configured != nil {
+		if c, ok := s.configured[id]; ok {
+			return c, nil
+		}
+		return metadata.MediaServer{}, store.ErrNotFound
+	}
+	return s.Store.ConnectionConfig(ctx, id, s.Key)
+}
+
 func (s *Service) Status() Report {
 	s.inventoryMu.Lock()
 	active := len(s.active) > 0
@@ -136,7 +175,7 @@ func (s *Service) ImportConnection(ctx context.Context, id string) (result Repor
 	}
 	r := Report{Phase: "media-server", Running: true}
 	s.setReport(r)
-	c, e := s.Store.ConnectionConfig(ctx, id, s.Key)
+	c, e := s.connectionConfig(ctx, id)
 	if e != nil {
 		return r, errors.New("connection credentials unavailable")
 	}
@@ -318,7 +357,7 @@ func (s *Service) SaveConnection(ctx context.Context, c metadata.MediaServer) (s
 	return s.Store.SaveConnection(ctx, c, s.Key)
 }
 func (s *Service) VerifyConnection(ctx context.Context, id string) error {
-	c, e := s.Store.ConnectionConfig(ctx, id, s.Key)
+	c, e := s.connectionConfig(ctx, id)
 	if e != nil {
 		return errors.New("connection credentials unavailable")
 	}
@@ -346,7 +385,7 @@ func (s *Service) Image(ctx context.Context, id string) ([]byte, string, error) 
 	var b []byte
 	var mime string
 	if ref.ConnectionID != "" && ref.Path != "" {
-		c, err := s.Store.ConnectionConfig(ctx, ref.ConnectionID, s.Key)
+		c, err := s.connectionConfig(ctx, ref.ConnectionID)
 		if err != nil {
 			return nil, "", errors.New("artwork connection unavailable")
 		}
@@ -374,8 +413,19 @@ type Capabilities struct {
 }
 
 func (s *Service) Capabilities() Capabilities {
-	return Capabilities{ConnectionsReady: len(s.Key) == 32, PublicMetadata: s.AllowPublic}
+	return Capabilities{ConnectionsReady: s.configured != nil || len(s.Key) == 32, PublicMetadata: s.AllowPublic}
 }
 func (s *Service) Connections(ctx context.Context) ([]store.Connection, error) {
-	return s.Store.Connections(ctx)
+	items, err := s.Store.Connections(ctx)
+	if err != nil || s.configured == nil {
+		return items, err
+	}
+	configured := items[:0]
+	for _, item := range items {
+		if _, ok := s.configured[item.ID]; ok {
+			item.TokenConfigured = true
+			configured = append(configured, item)
+		}
+	}
+	return configured, nil
 }

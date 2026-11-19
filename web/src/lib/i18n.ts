@@ -2,6 +2,7 @@ export const translations = {
   en: {
     servers: 'Servers',
     serverName: 'Server name',
+    configFileHint: 'Manage these settings in lookout.toml.',
     allServers: 'All servers',
     serversHint:
       'Name your servers and choose how often their inventory is checked. Failed checks retain the last known copies.',
@@ -247,6 +248,7 @@ export const translations = {
   de: {
     servers: 'Server',
     serverName: 'Servername',
+    configFileHint: 'Verwalte diese Einstellungen in lookout.toml.',
     allServers: 'Alle Server',
     serversHint:
       'Benenne deine Server und lege die Prüfintervalle fest. Bei Fehlern bleiben zuletzt bekannte Kopien erhalten.',

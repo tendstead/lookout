@@ -7,3 +7,6 @@ web/test-results/
 web/playwright-report/
 cmd/server/static/*
 !cmd/server/static/.gitkeep
+
+lookout-config/
+lookout.toml

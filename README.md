@@ -27,23 +27,11 @@ Lookout does not download, play, move, rename or delete media.
 
 ## Run
 
-Requires Docker Engine with Compose/Buildx, Make, and an existing PostgreSQL server with a dedicated Lookout
-database and login role. Follow [database setup](docs/deployment.md), then:
+Requires Docker Engine with Compose/Buildx, Make, and an existing PostgreSQL server with a dedicated Lookout database and login role.
 
-```sh
-cp .env.example .env
-# Set the database URL, password-file path and database Docker network in .env.
-make build
-docker compose up -d --no-build --wait
-```
+[Configure Lookout](docs/configuration.md) with one `lookout.toml` file. Pick Jellyfin, Plex, SFTP, or SSH for each server. The TOML deployment runs with a read-only web UI and no application environment variables.
 
-Open <http://localhost:8083>. To use Lookout on a phone, set `LISTEN_ADDR=0.0.0.0`
-in `.env`, recreate the app with `docker compose up -d --no-build --wait`, and visit
-`http://<your-computer-LAN-address>:8083` while connected to the same local network.
-Lookout has no application login and is intended for a trusted network.
-
-`docker compose down` stops Lookout; its dedicated database stays on your PostgreSQL
-server. Language and theme are saved separately on each device.
+Existing environment-based installations can follow the [migration instructions](docs/configuration.md#move-an-existing-deployment). Lookout has no application login and is intended for a trusted network.
 
 ## Screenshots
 

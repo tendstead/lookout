@@ -15,6 +15,7 @@
   let limitWidth = $state(false);
   let pathname = $state(window.location.pathname);
   let checking = $state(true);
+  let readOnly = $state(true);
   let service = $state<boolean | null>(null);
   let database = $state<boolean | null>(null);
   let checked = $state<Date | null>(null);
@@ -90,6 +91,17 @@
     checked = new Date();
     checking = false;
   }
+  async function loadMode() {
+    try {
+      const response = await fetch('/api/v1/status', {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(4000),
+      });
+      if (response.ok) readOnly = (await response.json()).read_only !== false;
+    } catch {
+      // Keep the UI read-only if the deployment mode is unavailable.
+    }
+  }
   onMount(() => {
     try {
       locale = storedLocale(localStorage.getItem('lookout.locale'));
@@ -99,6 +111,7 @@
       /* use defaults */
     }
     void check();
+    void loadMode();
     const pop = () => {
       pathname = window.location.pathname;
     };
@@ -181,14 +194,18 @@
           <h2>{t('headline')}</h2>
           <p class="lead">{t('intro')}</p>
         </section>{/if}
-      {#if isWanted}<Wanted {locale} />{:else if isServers}<Servers
+      {#if isWanted}<Wanted {locale} {readOnly} />{:else if isServers}<Servers
           {locale}
+          {readOnly}
         />{:else if isReleases}<Releases
           {locale}
+          {readOnly}
         />{:else if isConnections}<Connections
           {locale}
+          {readOnly}
         />{:else}{#key pathname}<Library
             {locale}
+            {readOnly}
             mode={isSources ? 'sources' : isDetail ? 'detail' : 'overview'}
             titleID={isDetail ? pathname.slice('/titles/'.length) : ''}
           />{/key}{/if}

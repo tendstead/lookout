@@ -18,6 +18,7 @@ import (
 type ServerConfig struct {
 	ID    string            `json:"id"`
 	Name  string            `json:"name"`
+	Type  string            `json:"type,omitempty"`
 	SSH   library.SSHConfig `json:"ssh"`
 	Roots []library.Root    `json:"roots"`
 }
@@ -39,6 +40,10 @@ func LoadConfig(file string) (Config, error) {
 	if e = json.Unmarshal(raw, &c); e != nil {
 		return c, errors.New("invalid catalogue configuration")
 	}
+	return ValidateConfig(c)
+}
+
+func ValidateConfig(c Config) (Config, error) {
 	if len(c.Servers) > 0 && len(c.Roots) > 0 {
 		return c, errors.New("use legacy roots or servers, not both")
 	}
@@ -198,13 +203,24 @@ func (s *Service) scan(ctx context.Context, id string) {
 		log.Printf("Source %s scan could not start", id)
 		return
 	}
-	ssh := s.config.SSH
+	ssh, kind := s.config.SSH, ""
 	for _, v := range s.config.Servers {
 		if v.ID == root.ServerID {
-			ssh = v.SSH
+			ssh, kind = v.SSH, v.Type
 		}
 	}
-	reader, e := library.Connect(job, ssh)
+	var reader interface {
+		library.Reader
+		Close() error
+	}
+	if kind == "ssh" {
+		reader, e = library.ConnectShell(job, ssh, root.Path)
+	} else {
+		reader, e = library.Connect(job, ssh)
+	}
+	if e != nil {
+		log.Printf("Source %s connection failed: %v", id, e)
+	}
 	var stats library.ScanStats
 	if e == nil {
 		stats, e = library.Scan(job, reader, root, func(f library.FileObservation) error { return s.store.Observe(job, scan, f) })

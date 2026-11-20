@@ -1,6 +1,5 @@
 # Foundation execution notes — 2026-11-14 (historical)
 
-Completed the [foundation plan](https://github.com/tendstead/lookout/blob/2834a1e0f7f7b9fd55c78e9cd8e011749e01a376/docs/superpowers/plans/2026-11-14-lookout-foundation.md).
 The library milestone followed this foundation. See [integration setup](library.md) for current behavior.
 
 ## Implementation decisions

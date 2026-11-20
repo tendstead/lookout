@@ -1,6 +1,5 @@
 # Foundation execution notes — 2026-11-14 (historical)
 
-Completed the [foundation plan](superpowers/plans/2026-11-14-lookout-foundation.md).
 The library milestone followed this foundation. See [integration setup](library.md) for current behavior.
 
 ## Implementation decisions

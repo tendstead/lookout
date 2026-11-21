@@ -4,7 +4,7 @@
   import UpcomingReleaseCard from './UpcomingReleaseCard.svelte';
   import type { UpcomingEpisode } from './release-types';
   import { translate, type Locale, type Key } from './i18n';
-  let { locale }: { locale: Locale } = $props();
+  let { locale, readOnly }: { locale: Locale; readOnly: boolean } = $props();
   const t = (key: Key) => translate(locale, key);
   type Episode = UpcomingEpisode;
   type Event = Omit<Episode, 'scheduled_at'> & {
@@ -107,12 +107,12 @@
     {t('scheduleReady')} · {unmatched}
     {t('matchNeeded')}
   </p>
-  <button
-    class="catalogue-button"
-    disabled={!allowed || running}
-    onclick={() => void refresh()}
-    >{running ? t('checkingButton') : t('refreshReleases')}</button
-  >
+  {#if !readOnly}<button
+      class="catalogue-button"
+      disabled={!allowed || running}
+      onclick={() => void refresh()}
+      >{running ? t('checkingButton') : t('refreshReleases')}</button
+    >{/if}
 </section>
 {#if failed}<p class="catalogue-message" role="alert">
     {t('releaseError')}

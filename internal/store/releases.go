@@ -29,7 +29,7 @@ func (s *Store) SaveEpisodeSnapshot(ctx context.Context, follow Follow, episodes
 		return 0, nil
 	}
 	emitted := map[string]bool{}
-	rows, e := tx.Query(ctx, "SELECT kind||':'||episode_id FROM release_events WHERE title_id=$1 AND show_id=$2", follow.TitleID, provider)
+	rows, e := tx.Query(ctx, "SELECT e.kind||':'||e.episode_id FROM release_events e WHERE e.show_id=$2 AND (e.title_id IN(SELECT id FROM title_identity WHERE canonical_id=(SELECT canonical_id FROM title_identity WHERE id=$1)) OR EXISTS(SELECT 1 FROM release_delivery_receipts sent WHERE sent.show_id=e.show_id AND sent.episode_id=e.episode_id AND sent.kind=e.kind))", follow.TitleID, provider)
 	if e != nil {
 		return 0, e
 	}
@@ -187,10 +187,17 @@ func (s *Store) ReleaseOverview(ctx context.Context, now time.Time, limit, offse
 	if e != nil {
 		return v, e
 	}
-	if e = s.pool.QueryRow(ctx, "SELECT count(*) FROM release_events e JOIN library_titles t ON t.id=e.title_id WHERE t.canonical_id IS NULL").Scan(&v.RecentTotal); e != nil {
+	const recentProjection = `WITH ranked AS (
+ SELECT e.*,i.canonical_id,COALESCE(o.status,'held') AS delivery,
+ row_number() OVER(PARTITION BY i.canonical_id,e.show_id,e.episode_id,e.kind ORDER BY
+ CASE COALESCE(o.status,'held') WHEN 'delivered' THEN 0 WHEN 'sending' THEN 1 WHEN 'pending' THEN 2 WHEN 'retry' THEN 3 WHEN 'held' THEN 4 WHEN 'coalesced' THEN 5 ELSE 6 END,e.created_at DESC,e.id DESC) AS priority
+ FROM release_events e JOIN title_identity i ON i.id=e.title_id LEFT JOIN notification_outbox o ON o.event_id=e.id
+ ) `
+	if e = s.pool.QueryRow(ctx, recentProjection+`SELECT count(*) FROM ranked WHERE priority=1`).Scan(&v.RecentTotal); e != nil {
 		return v, e
 	}
-	rows, e = s.pool.Query(ctx, `SELECT e.id,e.title_id::text,e.title_name,e.category,e.episode_id,e.kind,e.episode_name,e.season,e.number,e.reported_at,e.precision,e.provider_url,COALESCE(o.status,'held') FROM release_events e LEFT JOIN notification_outbox o ON o.event_id=e.id JOIN library_titles t ON t.id=e.title_id WHERE t.canonical_id IS NULL ORDER BY e.created_at DESC,e.id DESC LIMIT $1 OFFSET $2`, limit, offset)
+	rows, e = s.pool.Query(ctx, recentProjection+`SELECT e.id,e.canonical_id::text,t.name,t.category,e.episode_id,e.kind,e.episode_name,e.season,e.number,e.reported_at,e.precision,e.provider_url,
+ CASE WHEN EXISTS(SELECT 1 FROM release_delivery_receipts sent WHERE sent.show_id=e.show_id AND sent.episode_id=e.episode_id AND sent.kind=e.kind) THEN 'delivered' ELSE e.delivery END FROM ranked e JOIN library_titles t ON t.id=e.canonical_id WHERE e.priority=1 ORDER BY e.created_at DESC,e.id DESC LIMIT $1 OFFSET $2`, limit, offset)
 	if e != nil {
 		return v, e
 	}

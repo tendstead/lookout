@@ -192,7 +192,8 @@
                   "additionalProperties": false,
                   "required": [
                     "service",
-                    "stage"
+                    "stage",
+                    "read_only"
                   ],
                   "properties": {
                     "service": {
@@ -204,8 +205,12 @@
                     "stage": {
                       "type": "string",
                       "enum": [
-                        "foundation"
+                        "foundation",
+                        "catalogue"
                       ]
+                    },
+                    "read_only": {
+                      "type": "boolean"
                     }
                   }
                 }
@@ -268,7 +273,18 @@
           "default": {
             "description": "Structured JSON error; see docs/api.md"
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "server",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Stable server ID; empty combines all servers"
+          }
+        ]
       },
       "head": {
         "summary": "List searchable paginated titles (headers only)",
@@ -279,7 +295,18 @@
           "default": {
             "description": "Structured JSON error; see docs/api.md"
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "server",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Stable server ID; empty combines all servers"
+          }
+        ]
       }
     },
     "/api/v1/titles/{id}": {
@@ -881,6 +908,15 @@
                 "title"
               ]
             }
+          },
+          {
+            "name": "server",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Stable server ID; empty combines all servers"
           }
         ],
         "responses": {
@@ -959,6 +995,15 @@
                 "title"
               ]
             }
+          },
+          {
+            "name": "server",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Stable server ID; empty combines all servers"
           }
         ],
         "responses": {
@@ -999,6 +1044,15 @@
                 "anime_series"
               ]
             }
+          },
+          {
+            "name": "server",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Stable server ID; empty combines all servers"
           }
         ],
         "responses": {
@@ -1037,6 +1091,15 @@
                 "anime_series"
               ]
             }
+          },
+          {
+            "name": "server",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Stable server ID; empty combines all servers"
           }
         ],
         "responses": {
@@ -1051,6 +1114,110 @@
           }
         }
       }
+    },
+    "/api/v1/servers": {
+      "get": {
+        "summary": "List logical servers, freshness and scan intervals",
+        "responses": {
+          "200": {
+            "description": "Successful operation; see docs/api.md for JSON contract"
+          }
+        }
+      },
+      "head": {
+        "summary": "Read server headers",
+        "responses": {
+          "200": {
+            "description": "Successful operation; see docs/api.md for JSON contract"
+          }
+        }
+      }
+    },
+    "/api/v1/servers/{id}": {
+      "post": {
+        "summary": "Rename server and set scan_hours / stale_hours",
+        "responses": {
+          "200": {
+            "description": "Successful operation; see docs/api.md for JSON contract"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/v1/wanted": {
+      "get": {
+        "summary": "List Wanted targets and per-server evidence",
+        "responses": {
+          "200": {
+            "description": "Successful operation; see docs/api.md for JSON contract"
+          }
+        }
+      },
+      "head": {
+        "summary": "Read Wanted headers",
+        "responses": {
+          "200": {
+            "description": "Successful operation; see docs/api.md for JSON contract"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add Wanted title/season/episode with quiet baseline",
+        "responses": {
+          "201": {
+            "description": "Successful operation; see docs/api.md for JSON contract"
+          }
+        }
+      }
+    },
+    "/api/v1/wanted/{id}/remove": {
+      "post": {
+        "summary": "Remove Wanted target and its arrivals",
+        "responses": {
+          "200": {
+            "description": "Successful operation; see docs/api.md for JSON contract"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/v1/titles/{id}/identity": {
+      "post": {
+        "summary": "Merge into target_id or split with empty target_id",
+        "responses": {
+          "200": {
+            "description": "Successful operation; see docs/api.md for JSON contract"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     }
   }
 }

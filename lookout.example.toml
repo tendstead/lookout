@@ -1,0 +1,56 @@
+# Copy this file to lookout-config/lookout.toml, then edit it.
+# The copy contains credentials. Keep it private and out of Git.
+# Optional settings. The defaults are false.
+# allow_public_metadata = false
+# follow_imported_series = false
+
+[database]
+url = "postgres://lookout@postgres:5432/lookout"
+password = "replace-with-your-database-password"
+
+# Optional Telegram notifications. The chat ID is quoted, even when numeric.
+# [telegram]
+# bot_token = "123456:replace-with-your-bot-token"
+# chat_id = "-100123456"
+# delivery_enabled = false
+
+# Keep the id stable across edits. Use "plex" with the Plex URL and token for Plex.
+[[servers]]
+id = "family"
+name = "Family Jellyfin"
+type = "jellyfin"
+url = "https://jellyfin.example.net"
+token = "replace-with-your-token"
+# scan_hours = 6
+# stale_hours = 24
+
+# Direct filesystem inventory. Uncomment this whole block to add a NAS.
+# Use type = "ssh" for hosts with SFTP disabled and Python 3 available.
+# [[servers]]
+# id = "home"
+# name = "Home NAS"
+# type = "sftp"
+# host = "nas.example.net"
+# port = 22
+# username = "lookout"
+# known_hosts_file = "nas-known-hosts"
+# private_key_file = "nas-key"
+# Use either private_key_file or password. Delete private_key_file for password login.
+# password = 'replace-with-your-ssh-password'
+#
+# [[servers.roots]]
+# id = "home-movies"
+# label = "Movies"
+# path = "/media/Movies"
+# category = "movie"
+# Other categories: series, anime_movie, anime_series.
+#
+# Optional Jellyfin/Plex metadata for the same filesystem inventory.
+# [servers.metadata]
+# type = "jellyfin"
+# url = "https://home-jellyfin.example.net"
+# token = "replace-with-your-token"
+#
+# [[servers.metadata.path_mappings]]
+# server_prefix = "/data/Movies"
+# source_id = "home-movies"

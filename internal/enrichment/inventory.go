@@ -12,8 +12,16 @@ import (
 )
 
 func inventorySource(id, kind string) string { return "api-" + id + "-" + kind }
-func (s *Service) ImportInventory(ctx context.Context, id string, c metadata.MediaServer) (Report, error) {
-	r := Report{Phase: "inventory", Running: true}
+func (s *Service) ensureInventorySource(ctx context.Context, id, kind string, c metadata.MediaServer) (string, error) {
+	source := inventorySource(id, kind)
+	if err := s.Store.EnsureSource(ctx, library.Root{ID: source, ServerID: c.ServerID, Label: c.Kind + " " + kind, Path: "/api/" + id + "/" + kind, Category: kind}); err != nil {
+		return "", err
+	}
+	return source, s.Store.SetSourceAdapter(ctx, source, c.Kind)
+}
+
+func (s *Service) ImportInventory(ctx context.Context, id string, c metadata.MediaServer) (r Report, err error) {
+	r = Report{Phase: "inventory", Running: true}
 	if c.ServerID == "" {
 		return r, errors.New("assign this connection to a server first")
 	}
@@ -22,12 +30,28 @@ func (s *Service) ImportInventory(ctx context.Context, id string, c metadata.Med
 	}
 	scans := map[string]string{}
 	counts := map[string]int{}
-	for _, kind := range []string{"movie", "series"} {
-		source := inventorySource(id, kind)
-		if e := s.Store.EnsureSource(ctx, library.Root{ID: source, ServerID: c.ServerID, Label: c.Kind + " " + kind, Path: "/api/" + id + "/" + kind, Category: kind}); e != nil {
-			return r, e
+	defer func() {
+		for kind, scan := range scans {
+			finish, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			save := s.Store.FinishScan(finish, scan, inventorySource(id, kind), library.ScanStats{Media: counts[kind]}, err)
+			cancel()
+			if save != nil && err == nil {
+				err = save
+			}
 		}
-		if e := s.Store.SetSourceAdapter(ctx, source, c.Kind); e != nil {
+		if err == nil {
+			err = s.Store.ReconcileIdentities(ctx)
+			if err == nil {
+				err = s.Store.ConnectionImportFinished(ctx, id)
+			}
+		}
+		r.Running = false
+		r.Failed = err != nil
+	}()
+
+	for _, kind := range []string{"movie", "series"} {
+		source, e := s.ensureInventorySource(ctx, id, kind, c)
+		if e != nil {
 			return r, e
 		}
 		scan, e := s.Store.StartScan(ctx, source)
@@ -36,14 +60,14 @@ func (s *Service) ImportInventory(ctx context.Context, id string, c metadata.Med
 		}
 		scans[kind] = scan
 	}
-	err := c.Inventory(ctx, func(item metadata.InventoryItem) error {
+	err = c.Inventory(ctx, func(item metadata.InventoryItem) error {
 		kind := item.Title.Kind
 		scan, ok := scans[kind]
 		if !ok {
 			return errors.New("unsupported media inventory type")
 		}
 		numbering := "unknown"
-		if len(item.Episodes) > 0 {
+		if item.SeasonKnown && len(item.Episodes) > 0 {
 			numbering = "season_episode"
 		}
 		// Item IDs are stable even when a provider hides physical paths. Each API
@@ -71,22 +95,6 @@ func (s *Service) ImportInventory(ctx context.Context, id string, c metadata.Med
 		r.Matched++
 		return nil
 	})
-	for kind, scan := range scans {
-		finish, e := context.WithTimeout(context.Background(), 10*time.Second)
-		save := s.Store.FinishScan(finish, scan, inventorySource(id, kind), library.ScanStats{Media: counts[kind]}, err)
-		e()
-		if save != nil && err == nil {
-			err = save
-		}
-	}
-	if err == nil {
-		err = s.Store.ReconcileIdentities(ctx)
-		if err == nil {
-			err = s.Store.ConnectionImportFinished(ctx, id)
-		}
-	}
-	r.Running = false
-	r.Failed = err != nil
 	return r, err
 }
 
@@ -96,13 +104,17 @@ func (s *Service) RunInventories(ctx context.Context) {
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	slots := make(chan struct{}, 2)
+	first := make(map[string]bool, len(s.configured))
+	for id := range s.configured {
+		first[id] = true
+	}
 	schedule := func() {
-		connections, e := s.Store.Connections(ctx)
+		connections, e := s.Connections(ctx)
 		if e != nil {
 			return
 		}
 		for _, c := range connections {
-			if c.ServerID == "" || !s.Store.ConnectionRetryAllowed(ctx, c.ID) {
+			if !c.TokenConfigured || c.ServerID == "" || (!first[c.ID] && !s.Store.ConnectionRetryAllowed(ctx, c.ID)) {
 				continue
 			}
 			due := false
@@ -116,7 +128,7 @@ func (s *Service) RunInventories(ctx context.Context) {
 			} else {
 				due = s.Store.ConnectionDue(ctx, c.ID)
 			}
-			if !due {
+			if !due && !first[c.ID] {
 				continue
 			}
 			select {
@@ -124,6 +136,7 @@ func (s *Service) RunInventories(ctx context.Context) {
 			default:
 				return
 			}
+			delete(first, c.ID)
 			go func(id string) {
 				defer func() { <-slots }()
 				request, cancel := context.WithTimeout(ctx, 30*time.Minute)

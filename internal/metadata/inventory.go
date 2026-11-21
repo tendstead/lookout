@@ -9,10 +9,11 @@ import (
 )
 
 type InventoryItem struct {
-	Title     ServerItem
-	Key, Path string
-	Season    int
-	Episodes  []int
+	Title       ServerItem
+	Key, Path   string
+	SeasonKnown bool
+	Season      int
+	Episodes    []int
 }
 
 // Inventory reports real movie/episode entries, never inferring that a series
@@ -31,7 +32,7 @@ func (p *MediaServer) Inventory(ctx context.Context, emit func(InventoryItem) er
 			type entry struct {
 				ID          string
 				Path        string
-				Season      int
+				Season      *int
 				Number, End *int
 			}
 			entries := []entry{}
@@ -43,7 +44,7 @@ func (p *MediaServer) Inventory(ctx context.Context, emit func(InventoryItem) er
 					Items []struct {
 						ID     string `json:"Id"`
 						Path   string `json:"Path"`
-						Season int    `json:"ParentIndexNumber"`
+						Season *int   `json:"ParentIndexNumber"`
 						Number *int   `json:"IndexNumber"`
 						End    *int   `json:"IndexNumberEnd"`
 					} `json:"Items"`
@@ -62,7 +63,7 @@ func (p *MediaServer) Inventory(ctx context.Context, emit func(InventoryItem) er
 						Total int `json:"totalSize"`
 						Items []struct {
 							ID     string `json:"ratingKey"`
-							Season int    `json:"parentIndex"`
+							Season *int   `json:"parentIndex"`
 							Number *int   `json:"index"`
 							Media  []struct {
 								Parts []struct {
@@ -109,7 +110,12 @@ func (p *MediaServer) Inventory(ctx context.Context, emit func(InventoryItem) er
 						numbers = append(numbers, n)
 					}
 				}
-				if e := emit(InventoryItem{Title: t, Key: v.ID, Path: v.Path, Season: v.Season, Episodes: numbers}); e != nil {
+				season := 0
+				known := v.Season != nil && *v.Season >= 0
+				if known {
+					season = *v.Season
+				}
+				if e := emit(InventoryItem{Title: t, Key: v.ID, Path: v.Path, Season: season, SeasonKnown: known, Episodes: numbers}); e != nil {
 					return e
 				}
 			}

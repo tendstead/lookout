@@ -7,6 +7,7 @@ import (
 	"github.com/tendstead/lookout/internal/store"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -18,12 +19,15 @@ type LibraryStore interface {
 }
 type ScanRequester interface{ RequestScan(string) error }
 type apiOptions struct {
-	multi     MultiServerStore
-	releases  ReleaseService
-	telegram  TelegramService
-	metadata  MetadataService
-	catalogue LibraryStore
-	scans     ScanRequester
+	readOnly    bool
+	serverTypes map[string]string
+	sourceIDs   []string
+	multi       MultiServerStore
+	releases    ReleaseService
+	telegram    TelegramService
+	metadata    MetadataService
+	catalogue   LibraryStore
+	scans       ScanRequester
 }
 type Option func(*apiOptions)
 
@@ -166,6 +170,15 @@ func (o apiOptions) serveCatalogue(w http.ResponseWriter, r *http.Request) bool 
 		if e != nil {
 			apiError(w, 503, "catalogue_unavailable", "Catalogue temporarily unavailable")
 		} else {
+			if o.sourceIDs != nil {
+				configured := v[:0]
+				for _, source := range v {
+					if slices.Contains(o.sourceIDs, source.ID) {
+						configured = append(configured, source)
+					}
+				}
+				v = configured
+			}
 			jsonResponse(w, 200, map[string]any{"items": v})
 		}
 		return true

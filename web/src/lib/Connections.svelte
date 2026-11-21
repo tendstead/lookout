@@ -17,7 +17,7 @@
     path_mappings: Mapping[];
   };
   type Source = { id: string; label: string; path: string };
-  let { locale }: { locale: Locale } = $props();
+  let { locale, readOnly }: { locale: Locale; readOnly: boolean } = $props();
   const t = (key: Key) => translate(locale, key);
   let items = $state<Connection[]>([]);
   let sources = $state<Source[]>([]);
@@ -133,7 +133,7 @@
 
 <section class="catalogue-intro">
   <h2>{t('metadataConnections')}</h2>
-  <p>{t('connectionIntro')}</p>
+  <p>{t(readOnly ? 'configFileHint' : 'connectionIntro')}</p>
 </section>
 {#if failed}<p class="catalogue-message" role="alert">
     {t('connectionError')}
@@ -159,99 +159,101 @@
           {m.server_prefix} → {sources.find((s) => s.id === m.source_id)
             ?.label || m.source_id}
         </p>{/each}
-      <div class="connection-actions">
-        <button
-          class="catalogue-button"
-          disabled={busy}
-          onclick={() => void action(item.id, 'verify')}
-          >{t('verifyConnection')}</button
-        ><button
-          class="catalogue-button"
-          disabled={busy || progress.running}
-          onclick={() => void action(item.id, 'import')}
-          >{t('importMetadata')}</button
-        >
-      </div>
+      {#if !readOnly}<div class="connection-actions">
+          <button
+            class="catalogue-button"
+            disabled={busy}
+            onclick={() => void action(item.id, 'verify')}
+            >{t('verifyConnection')}</button
+          ><button
+            class="catalogue-button"
+            disabled={busy || progress.running}
+            onclick={() => void action(item.id, 'import')}
+            >{t('importMetadata')}</button
+          >
+        </div>{/if}
     </article>{/each}
 </div>
 {#if !items.length}<p class="metadata-note">{t('noConnections')}</p>{/if}
-<section class="source-card connection-form">
-  <form
-    onsubmit={(e) => {
-      e.preventDefault();
-      void save();
-    }}
-  >
-    <label
-      >{t('serverType')}<select bind:value={kind} disabled={!ready}
-        ><option value="jellyfin">Jellyfin</option><option value="plex"
-          >Plex</option
-        ></select
-      ></label
-    ><label
-      >{t('serverURL')}<input
-        type="url"
-        bind:value={serverURL}
-        required
-        placeholder="http://media-server:8096"
-        disabled={!ready}
-      /></label
-    ><label
-      >{t('accessToken')}<input
-        type="password"
-        bind:value={token}
-        required
-        autocomplete="new-password"
-        disabled={!ready}
-      /></label
+{#if !readOnly}<section class="source-card connection-form">
+    <form
+      onsubmit={(e) => {
+        e.preventDefault();
+        void save();
+      }}
     >
-    <label
-      >{t('linkServer')}<select bind:value={serverID}
-        ><option value="">{t('newInventoryServer')}</option
-        >{#each servers as server}<option value={server.id}
-            >{server.name}</option
-          >{/each}</select
-      ></label
-    >
-    <p class="metadata-note">{t('tokenNote')}</p>
-    <p class="metadata-note">{t('mappingNote')}</p>
-    {#each mappings as m, i}<div class="path-mapping">
-        <label
-          >{t('serverPrefix')}<input
-            bind:value={m.server_prefix}
-            placeholder="/data/Movies"
-            required
-          /></label
-        ><label
-          >{t('localSource')}<select bind:value={m.source_id} required
-            ><option value="">—</option>{#each sources as source}<option
-                value={source.id}>{source.label}</option
-              >{/each}</select
-          ></label
-        ><button
-          type="button"
-          class="mapping-remove"
-          aria-label={t('removeMapping')}
-          onclick={() =>
-            (mappings = mappings.filter((_, index) => index !== i))}>×</button
-        >
-      </div>{/each}
-    <div class="connection-actions">
-      <button
-        type="button"
-        class="catalogue-button secondary"
-        disabled={!ready}
-        onclick={() =>
-          (mappings = [...mappings, { server_prefix: '', source_id: '' }])}
-        >{t('addMapping')}</button
-      ><button type="submit" class="catalogue-button" disabled={!ready || busy}
-        >{t('saveConnection')}</button
+      <label
+        >{t('serverType')}<select bind:value={kind} disabled={!ready}
+          ><option value="jellyfin">Jellyfin</option><option value="plex"
+            >Plex</option
+          ></select
+        ></label
+      ><label
+        >{t('serverURL')}<input
+          type="url"
+          bind:value={serverURL}
+          required
+          placeholder="http://media-server:8096"
+          disabled={!ready}
+        /></label
+      ><label
+        >{t('accessToken')}<input
+          type="password"
+          bind:value={token}
+          required
+          autocomplete="new-password"
+          disabled={!ready}
+        /></label
       >
-    </div>
-    {#if !ready}<p class="metadata-note">{t('connectionsDisabled')}</p>{/if}
-  </form>
-</section>
-{#if publicMetadata}<section class="source-card connection-form">
+      <label
+        >{t('linkServer')}<select bind:value={serverID}
+          ><option value="">{t('newInventoryServer')}</option
+          >{#each servers as server}<option value={server.id}
+              >{server.name}</option
+            >{/each}</select
+        ></label
+      >
+      <p class="metadata-note">{t('tokenNote')}</p>
+      <p class="metadata-note">{t('mappingNote')}</p>
+      {#each mappings as m, i}<div class="path-mapping">
+          <label
+            >{t('serverPrefix')}<input
+              bind:value={m.server_prefix}
+              placeholder="/data/Movies"
+              required
+            /></label
+          ><label
+            >{t('localSource')}<select bind:value={m.source_id} required
+              ><option value="">—</option>{#each sources as source}<option
+                  value={source.id}>{source.label}</option
+                >{/each}</select
+            ></label
+          ><button
+            type="button"
+            class="mapping-remove"
+            aria-label={t('removeMapping')}
+            onclick={() =>
+              (mappings = mappings.filter((_, index) => index !== i))}>×</button
+          >
+        </div>{/each}
+      <div class="connection-actions">
+        <button
+          type="button"
+          class="catalogue-button secondary"
+          disabled={!ready}
+          onclick={() =>
+            (mappings = [...mappings, { server_prefix: '', source_id: '' }])}
+          >{t('addMapping')}</button
+        ><button
+          type="submit"
+          class="catalogue-button"
+          disabled={!ready || busy}>{t('saveConnection')}</button
+        >
+      </div>
+      {#if !ready}<p class="metadata-note">{t('connectionsDisabled')}</p>{/if}
+    </form>
+  </section>{/if}
+{#if publicMetadata && !readOnly}<section class="source-card connection-form">
     <h3>TVmaze</h3>
     <p>{t('officialPrivacy')}</p>
     <button
@@ -272,4 +274,4 @@
     </p>
   </section>{/if}
 
-<Telegram {locale} />
+<Telegram {locale} {readOnly} />

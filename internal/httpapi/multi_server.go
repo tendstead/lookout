@@ -10,7 +10,7 @@ import (
 )
 
 type MultiServerStore interface {
-	ListServers(context.Context) ([]store.Server, error)
+	ListServersForSources(context.Context, []string) ([]store.Server, error)
 	SaveServer(context.Context, store.Server) error
 	ListWanted(context.Context) ([]store.Wanted, error)
 	AddWanted(context.Context, store.Wanted) (store.Wanted, error)
@@ -28,10 +28,20 @@ func (o apiOptions) serveMultiServer(w http.ResponseWriter, r *http.Request) boo
 		if !readMethod(w, r) {
 			return true
 		}
-		v, e := o.multi.ListServers(r.Context())
+		v, e := o.multi.ListServersForSources(r.Context(), o.sourceIDs)
 		if e != nil {
 			apiError(w, 503, "servers_unavailable", "Servers unavailable")
 		} else {
+			if o.serverTypes != nil {
+				configured := v[:0]
+				for _, server := range v {
+					if kind, ok := o.serverTypes[server.ID]; ok {
+						server.Type = kind
+						configured = append(configured, server)
+					}
+				}
+				v = configured
+			}
 			jsonResponse(w, 200, map[string]any{"items": v})
 		}
 		return true

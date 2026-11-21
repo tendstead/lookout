@@ -10,6 +10,7 @@ import (
 
 type Server struct {
 	ID          string     `json:"id"`
+	Type        string     `json:"type,omitempty"`
 	Name        string     `json:"name"`
 	ScanHours   int        `json:"scan_hours"`
 	StaleHours  int        `json:"stale_hours"`
@@ -36,11 +37,16 @@ func (s *Store) SaveServer(ctx context.Context, v Server) error {
 	return e
 }
 func (s *Store) ListServers(ctx context.Context) ([]Server, error) {
+	return s.ListServersForSources(ctx, nil)
+}
+
+// A nil source list includes historical roots for legacy clients.
+func (s *Store) ListServersForSources(ctx context.Context, sources []string) ([]Server, error) {
 	rows, e := s.pool.Query(ctx, `SELECT v.id,v.name,v.scan_hours,v.stale_hours,
  CASE WHEN count(s.id)=0 THEN 'pending' WHEN bool_or(s.status IN('error','interrupted','review')) THEN 'error'
  WHEN bool_or(s.last_success IS NULL OR s.last_success<now()-make_interval(hours=>v.stale_hours)) THEN 'stale'
  WHEN bool_or(s.status='scanning') THEN 'scanning' ELSE 'ready' END,min(s.last_success)
- FROM library_servers v LEFT JOIN library_sources s ON s.server_id=v.id GROUP BY v.id ORDER BY lower(v.name),v.id`)
+ FROM library_servers v LEFT JOIN library_sources s ON s.server_id=v.id AND ($1::text[] IS NULL OR s.id=ANY($1)) GROUP BY v.id ORDER BY lower(v.name),v.id`, sources)
 	if e != nil {
 		return nil, e
 	}
@@ -85,5 +91,9 @@ func (s *Store) ConnectionImportFinished(ctx context.Context, id string) error {
 }
 func (s *Store) ReportedPath(ctx context.Context, source, key, path string) error {
 	_, e := s.pool.Exec(ctx, `UPDATE library_files SET reported_path=$3 WHERE source_id=$1 AND relative_path=$2`, source, key, path)
+	return e
+}
+func (s *Store) FailConnectionInventory(ctx context.Context, id string) error {
+	_, e := s.pool.Exec(ctx, `UPDATE library_sources SET status='error',last_error='API inventory unavailable; last known copies retained' WHERE adapter IN('jellyfin','plex') AND id IN($1,$2)`, "api-"+id+"-movie", "api-"+id+"-series")
 	return e
 }

@@ -2,7 +2,7 @@
 # Buildx owns the actual builder container; do not start this file as an app stack.
 services:
   builder:
-    image: moby/buildkit:v0.35.0
+    image: moby/buildkit:v0.35.1
     cpus: 2
     mem_limit: 2g
     memswap_limit: 2g

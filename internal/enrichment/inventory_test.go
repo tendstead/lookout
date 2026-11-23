@@ -8,6 +8,7 @@ import (
 	"github.com/tendstead/lookout/internal/store"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"sync/atomic"
 	"testing"
 )
@@ -128,5 +129,100 @@ func TestQueueAccountsForConcurrentAutomaticImports(t *testing.T) {
 	s.active = map[string]bool{"fixture": true}
 	if e := s.Queue("official"); e == nil {
 		t.Fatal("queued metadata during automatic inventory")
+	}
+}
+
+func TestAPIInventoryRetiresAnItemPlaceholderAfterComparingCopies(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	var expanded atomic.Bool
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/System/Info" {
+			_, _ = w.Write([]byte(`{"ServerName":"Fixture"}`))
+			return
+		}
+		if expanded.Load() {
+			_, _ = w.Write([]byte(`{"TotalRecordCount":1,"Items":[{"Id":"film","Name":"Film","Type":"Movie","MediaSources":[{"Id":"a","Path":"/fixture/a.mkv","Size":0},{"Id":"b","Path":"/fixture/b.mkv","Size":4000}]}]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"TotalRecordCount":1,"Items":[{"Id":"film","Name":"Film","Type":"Movie"}]}`))
+	}))
+	defer api.Close()
+	service := New(s, make([]byte, 32))
+	connection, err := service.SaveConnection(ctx, metadata.MediaServer{Kind: "jellyfin", BaseURL: api.URL, Token: "fixture"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.ImportConnection(ctx, connection.ID); err != nil {
+		t.Fatal(err)
+	}
+	page, err := s.ListTitles(ctx, store.TitleQuery{})
+	if err != nil || len(page.Items) != 1 {
+		t.Fatal(page, err)
+	}
+	expanded.Store(true)
+	for range 2 {
+		if _, err := service.ImportConnection(ctx, connection.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	detail, err := s.GetTitle(ctx, page.Items[0].ID)
+	if err != nil || len(detail.Files) != 2 {
+		t.Fatalf("expected two physical versions instead of the old placeholder: %+v %v", detail.Files, err)
+	}
+	seen := map[int64]bool{}
+	for _, file := range detail.Files {
+		if file.FileSize == nil || file.Technical == nil || file.Technical.ObservedAt.IsZero() {
+			t.Fatal("version lost technical data", file)
+		}
+		seen[*file.FileSize] = true
+	}
+	if !seen[0] || !seen[4000] {
+		t.Fatal("expected distinct known sizes, including explicit zero", seen)
+	}
+}
+
+func TestPlexInventoryCoalescesEpisodesWithTheSamePhysicalPath(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	var expanded atomic.Bool
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/":
+			_, _ = w.Write([]byte(`{"MediaContainer":{"friendlyName":"Fixture"}}`))
+		case "/library/sections":
+			_, _ = w.Write([]byte(`{"MediaContainer":{"Directory":[{"key":"1","type":"show"}]}}`))
+		case "/library/sections/1/all":
+			_, _ = w.Write([]byte(`{"MediaContainer":{"totalSize":1,"Metadata":[{"ratingKey":"show","title":"Show","type":"show"}]}}`))
+		case "/library/metadata/show/allLeaves":
+			if !expanded.Load() {
+				_, _ = w.Write([]byte(`{"MediaContainer":{"totalSize":2,"Metadata":[{"ratingKey":"2","parentIndex":1,"index":2},{"ratingKey":"1","parentIndex":1,"index":1}]}}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"MediaContainer":{"totalSize":2,"Metadata":[{"ratingKey":"2","parentIndex":1,"index":2,"Media":[{"Part":[{"id":2,"file":"/fixture/E01-E02.mkv","size":2000,"Stream":[{"streamType":2,"languageCode":"eng"}]}]}]},{"ratingKey":"1","parentIndex":1,"index":1,"Media":[{"Part":[{"id":1,"file":"/fixture/E01-E02.mkv","size":2000,"Stream":[{"streamType":2,"languageCode":"eng"}]}]}]}]}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+	service := New(s, make([]byte, 32))
+	connection, err := service.SaveConnection(ctx, metadata.MediaServer{Kind: "plex", BaseURL: api.URL, Token: "fixture"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.ImportConnection(ctx, connection.ID); err != nil {
+		t.Fatal(err)
+	}
+	expanded.Store(true)
+	if _, err := service.ImportConnection(ctx, connection.ID); err != nil {
+		t.Fatal(err)
+	}
+	page, err := s.ListTitles(ctx, store.TitleQuery{})
+	if err != nil || len(page.Items) != 1 {
+		t.Fatal(page, err)
+	}
+	detail, err := s.GetTitle(ctx, page.Items[0].ID)
+	if err != nil || len(detail.Files) != 1 || !slices.Equal(detail.Files[0].Episodes, []int{1, 2}) {
+		t.Fatalf("expected one file covering both episodes: %+v %v", detail.Files, err)
 	}
 }

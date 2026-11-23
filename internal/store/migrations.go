@@ -23,3 +23,6 @@ var serverSchema string
 
 //go:embed migrations/007_wanted.sql
 var wantedSchema string
+
+//go:embed migrations/011_file_comparison.sql
+var comparisonSchema string

@@ -87,10 +87,17 @@ func (s *Store) Observe(ctx context.Context, scan string, f library.FileObservat
 	if e != nil {
 		return e
 	}
-	_, e = tx.Exec(ctx, `INSERT INTO library_files(source_id,title_id,relative_path,size,modified_at,season,episodes,numbering,episode_title,last_scan,storage,archive_member)
- VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(source_id,relative_path,archive_member) DO UPDATE SET title_id=excluded.title_id,size=excluded.size,modified_at=excluded.modified_at,
+	itemKeys := f.APIItemKeys
+	if itemKeys == nil {
+		itemKeys = []string{}
+	}
+	_, e = tx.Exec(ctx, `INSERT INTO library_files(source_id,title_id,relative_path,size,modified_at,season,episodes,numbering,episode_title,last_scan,storage,archive_member,technical,api_item_keys,reported_path,provider_revision)
+ VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) ON CONFLICT(source_id,relative_path,archive_member) DO UPDATE SET title_id=excluded.title_id,size=excluded.size,modified_at=excluded.modified_at,
  season=excluded.season,episodes=excluded.episodes,numbering=excluded.numbering,episode_title=excluded.episode_title,last_seen=now(),last_scan=excluded.last_scan,
- observation=CASE WHEN library_files.size=excluded.size AND library_files.modified_at=excluded.modified_at THEN 'stable' ELSE 'observed' END,absent_scans=0`, f.SourceID, title, f.RelativePath, f.Size, f.Modified, season, episodes, f.Numbering, f.EpisodeTitle, scan, storage, f.ArchiveMember)
+ technical=CASE WHEN cardinality(excluded.api_item_keys)>0 THEN excluded.technical
+   WHEN library_files.size=excluded.size AND library_files.modified_at=excluded.modified_at THEN library_files.technical END,
+ api_item_keys=excluded.api_item_keys,reported_path=excluded.reported_path,provider_revision=excluded.provider_revision,
+ observation=CASE WHEN library_files.size=excluded.size AND library_files.modified_at=excluded.modified_at THEN 'stable' ELSE 'observed' END,absent_scans=0`, f.SourceID, title, f.RelativePath, f.Size, f.Modified, season, episodes, f.Numbering, f.EpisodeTitle, scan, storage, f.ArchiveMember, f.Technical, itemKeys, f.ReportedPath, f.ProviderRevision)
 	if e != nil {
 		return e
 	}
@@ -121,6 +128,18 @@ func (s *Store) FinishScan(ctx context.Context, scan, source string, stats libra
 	var previous int64
 	if e = tx.QueryRow(ctx, "SELECT file_count FROM library_sources WHERE id=$1 FOR UPDATE", source).Scan(&previous); e != nil {
 		return e
+	}
+	if scanErr == nil {
+		// Item-level placeholders can be retired as soon as a full import
+		// identifies the actual files. Several placeholders can resolve to
+		// one physical file, so exclude them from the inventory-drop guard.
+		retired, err := tx.Exec(ctx, `DELETE FROM library_files old USING library_files copy
+ WHERE old.source_id=$1 AND old.last_scan<>$2 AND copy.source_id=old.source_id AND copy.last_scan=$2
+ AND old.relative_path=ANY(copy.api_item_keys)`, source, scan)
+		if err != nil {
+			return err
+		}
+		previous -= retired.RowsAffected()
 	}
 	if scanErr == nil && previous > 0 && int64(stats.Media+stats.ArchivedMedia)*10 < previous*8 {
 		status = "review"
@@ -170,4 +189,15 @@ func (s *Store) ListSources(ctx context.Context) ([]Source, error) {
 		out = append(out, v)
 	}
 	return out, rows.Err()
+}
+
+// AttachTechnicalProfile associates provider data only with an exact observed
+// plain file on the configured server. A later size or mtime change clears it.
+func (s *Store) AttachTechnicalProfile(ctx context.Context, source, server, relative string, profile *library.TechnicalProfile) error {
+	_, err := s.pool.Exec(ctx, `UPDATE library_files f SET technical=$4
+ FROM library_sources src WHERE src.id=f.source_id AND src.id=$1 AND src.server_id=$2
+ AND f.relative_path=$3 AND f.storage='file' AND f.archive_member=''
+ AND f.observation IN ('observed','stable')
+ AND ($5::bigint IS NULL OR f.size=$5) AND f.last_seen<=$6`, source, server, relative, profile, profile.SizeBytes, profile.ObservedAt)
+	return err
 }

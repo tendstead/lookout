@@ -8,6 +8,8 @@
   import ServerFilter from './ServerFilter.svelte';
   import ServerBadges from './ServerBadges.svelte';
   import { api, type Availability } from './server-types';
+  import { fileSize, type FileItem } from './file-comparison';
+  import TitleComparison from './TitleComparison.svelte';
   type Title = {
     servers?: Availability[];
     id: string;
@@ -22,21 +24,6 @@
     source_label: string;
     has_artwork?: boolean;
     metadata_url?: string;
-  };
-  type FileItem = {
-    adapter?: string;
-    reported_path?: string;
-    server_id?: string;
-    server_name?: string;
-    storage?: string;
-    archive_member?: string;
-    id: number;
-    relative_path: string;
-    size: number;
-    season: number | null;
-    episodes: number[];
-    numbering: string;
-    observation: string;
   };
   type Source = {
     id: string;
@@ -54,11 +41,13 @@
     mode = 'overview',
     readOnly,
     titleID = '',
+    showFlags = false,
   }: {
     locale: Locale;
     readOnly: boolean;
     mode?: 'overview' | 'sources' | 'detail';
     titleID?: string;
+    showFlags?: boolean;
   } = $props();
   const t = (key: Key) => translate(locale, key);
   let titles = $state<Title[]>([]);
@@ -307,6 +296,13 @@
             </p>
           </article>{/each}
       </div>
+      <TitleComparison
+        files={detail.files}
+        isSeries={detail.category === 'series' ||
+          detail.category === 'anime_series'}
+        {locale}
+        {showFlags}
+      />
       {#if !readOnly}<button
           class="catalogue-button"
           onclick={() => void wanted()}>{t('addWanted')}</button
@@ -341,7 +337,8 @@
           {t('archivedNote')}
         </p>{/if}
       <ul class="observed-files">
-        {#each detail.files as file}<li>
+        {#each detail.files as file}{@const bytes = fileSize(file)}
+          <li>
             <div class="file-name">
               {#if file.server_name}<strong>{file.server_name}</strong> ·
               {/if}{file.reported_path ||
@@ -357,12 +354,12 @@
               {/if}
               {#if file.episodes?.length}{t('season')}
                 {file.season} · {t('episode')}
-                {file.episodes.join(', ')}{:else}{t('unknownNumbering')}{/if} · {(
-                file.size /
-                1024 /
-                1024 /
-                1024
-              ).toLocaleString(locale, { maximumFractionDigits: 2 })} GiB
+                {file.episodes.join(', ')}{:else}{t('unknownNumbering')}{/if} · {bytes ==
+              null
+                ? t('comparisonUnknown')
+                : (bytes / 1024 ** 3).toLocaleString(locale, {
+                    maximumFractionDigits: 2,
+                  }) + ' GiB'}
             </div>
           </li>{/each}
       </ul>

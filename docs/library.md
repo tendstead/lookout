@@ -124,6 +124,25 @@ alone does not import it; use the CLI or the Connections form.
 The host and container must both resolve/reach your chosen URL; a LAN address can
 be used when a local reverse-proxy hostname is unavailable inside Docker.
 
+## Comparing server copies
+
+Expand **Compare files** on a title to inspect current copies. For a series,
+choose a season and episode. **File differences**, below **Wanted**, shows one
+card per title with differences across servers. Open a card to compare the
+copies and select an episode when the title has several comparisons. Missing data displays
+as unknown, and file dates are excluded from the comparison.
+
+Hide copies in a card's comparison and restore them from the **Show hidden** view.
+The preference is saved in the current browser and expires when Lookout
+observes a changed file version. Title details continue to show current
+copies. Enable **Show language flags** in settings to display a flag when a
+reported audio or subtitle language includes a supported region.
+
+Linked Jellyfin and Plex connections enrich exact mapped file paths.
+Filesystem sizes take precedence, and a changed file waits for the next
+provider refresh before showing technical details again. API-only inventory uses
+the file properties each media server reports.
+
 ## Public metadata and releases
 
 Set `ALLOW_PUBLIC_METADATA=true` only when you want Lookout to send series/anime

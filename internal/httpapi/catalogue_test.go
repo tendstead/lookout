@@ -23,6 +23,9 @@ func (f *catalogueFixture) GetTitle(_ context.Context, id string) (store.TitleDe
 	}
 	return store.TitleDetail{Title: store.Title{ID: id, Name: "Example"}, Files: []store.MediaFile{}}, nil
 }
+func (f *catalogueFixture) ListFileDifferences(_ context.Context, limit, offset int) (store.FileDifferencePage, error) {
+	return store.FileDifferencePage{Items: []store.FileDifference{{TitleID: "title-1", TitleName: "Example"}}, Limit: limit, Offset: offset}, nil
+}
 func (f *catalogueFixture) ListSources(context.Context) ([]store.Source, error) {
 	return []store.Source{}, nil
 }
@@ -45,6 +48,9 @@ func TestCatalogueAPI(t *testing.T) {
 		{"GET", "/api/v1/titles?limit=101", "", "", 400, "invalid_query"},
 		{"GET", "/api/v1/titles?offset=-1", "", "", 400, "invalid_query"},
 		{"GET", "/api/v1/titles/title-1", "", "", 200, "files"},
+		{"GET", "/api/v1/file-differences?limit=5&offset=2", "", "", 200, `"offset":2`},
+		{"GET", "/api/v1/file-differences?limit=0", "", "", 400, "invalid_query"},
+		{"POST", "/api/v1/file-differences", "", "", 405, "method_not_allowed"},
 		{"GET", "/api/v1/titles/missing", "", "", 404, "not_found"},
 		{"POST", "/api/v1/sources/series/scan", "https://attacker.invalid", "application/json", 403, "origin_forbidden"},
 		{"POST", "/api/v1/sources/series/scan", "", "text/plain", 415, "json_required"},

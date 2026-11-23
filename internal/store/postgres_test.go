@@ -102,3 +102,20 @@ func TestNewerSchemaRejected(t *testing.T) {
 		t.Fatal("accepted future schema")
 	}
 }
+
+func TestMigrateAppliesMissingVersionsWhenBranchesConverge(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	high := migration{version: 20, sql: "CREATE TABLE later_feature(id int)"}
+	low := migration{version: 19, sql: "CREATE TABLE earlier_feature(id int)"}
+	if err := s.migrate(ctx, []migration{high}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.migrate(ctx, []migration{low, high}); err != nil {
+		t.Fatal(err)
+	}
+	var present bool
+	if err := s.pool.QueryRow(ctx, "SELECT to_regclass('earlier_feature') IS NOT NULL").Scan(&present); err != nil || !present {
+		t.Fatalf("missing migration was skipped: %v", err)
+	}
+}

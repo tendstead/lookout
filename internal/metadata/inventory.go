@@ -3,91 +3,96 @@ package metadata
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"net/url"
 	"strconv"
+	"time"
+
+	"github.com/tendstead/lookout/internal/library"
 )
 
 type InventoryItem struct {
-	Title       ServerItem
-	Key, Path   string
-	SeasonKnown bool
-	Season      int
-	Episodes    []int
+	Title                        ServerItem
+	Key, ItemKey, Path, Revision string
+	Technical                    *library.TechnicalProfile
+	SeasonKnown                  bool
+	Season                       int
+	Episodes                     []int
 }
 
-// Inventory reports real movie/episode entries, never inferring that a series
-// record means all of its seasons exist. Metadata and media bodies are not read.
+const mediaInventoryPageSize = 100
+
+type inventoryCopy struct {
+	path, identityKind, identity, revision string
+	profile                                *library.TechnicalProfile
+}
+
+func (i InventoryItem) emitCopies(copies []inventoryCopy, observedAt time.Time, emit func(InventoryItem) error) error {
+	if len(copies) == 0 {
+		return emit(i)
+	}
+	keys := make(map[string]bool, len(copies))
+	for _, copy := range copies {
+		item := i
+		item.Path = copy.path
+		item.Revision = copy.revision
+		item.Technical = copy.profile
+		if copy.profile != nil {
+			copy.profile.ObservedAt = observedAt
+		}
+		if copy.identity != "" {
+			digest := sha256.Sum256([]byte(fmt.Sprintf("%q:%q:%q", i.ItemKey, copy.identityKind, copy.identity)))
+			item.Key = fmt.Sprintf("copy:%x", digest)
+		}
+		if keys[item.Key] {
+			continue
+		}
+		keys[item.Key] = true
+		if err := emit(item); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type episodeInventoryEntry struct {
+	id, path            string
+	season, number, end *int
+	copies              []inventoryCopy
+}
+
+// Inventory reports actual movie files, episode files and item-level availability.
 func (p *MediaServer) Inventory(ctx context.Context, emit func(InventoryItem) error) error {
-	return p.Titles(ctx, func(t ServerItem) error {
-		if t.Kind == "movie" {
-			path := ""
-			if len(t.Paths) > 0 {
-				path = t.Paths[0]
+	return p.InventoryWithTitles(ctx, nil, emit)
+}
+
+// InventoryWithTitles emits each title before its copies, including series with
+// no episodes. Pass nil for emitTitle to receive only inventory observations.
+func (p *MediaServer) InventoryWithTitles(ctx context.Context, emitTitle func(ServerItem) error, emit func(InventoryItem) error) error {
+	observedAt := time.Now().UTC()
+	return p.titles(ctx, true, func(t ServerItem, copies []inventoryCopy) error {
+		if t.ID == "" {
+			return errors.New("media server item is missing an identifier")
+		}
+		if emitTitle != nil {
+			if err := emitTitle(t); err != nil {
+				return err
 			}
-			return emit(InventoryItem{Title: t, Key: t.ID, Path: path})
+		}
+		if t.Kind == "movie" {
+			item := InventoryItem{Title: t, Key: t.ID, ItemKey: t.ID}
+			if len(t.Paths) > 0 {
+				item.Path = t.Paths[0]
+			}
+			return item.emitCopies(copies, observedAt, emit)
 		}
 		seen := map[string]bool{}
 		for offset := 0; offset < 100000; {
-			type entry struct {
-				ID          string
-				Path        string
-				Season      *int
-				Number, End *int
-			}
-			entries := []entry{}
-			total := 0
-			if p.Kind == "jellyfin" {
-				q := url.Values{"ParentId": {t.ID}, "Recursive": {"true"}, "IncludeItemTypes": {"Episode"}, "Fields": {"Path"}, "StartIndex": {strconv.Itoa(offset)}, "Limit": {"200"}}
-				var response struct {
-					Total int `json:"TotalRecordCount"`
-					Items []struct {
-						ID     string `json:"Id"`
-						Path   string `json:"Path"`
-						Season *int   `json:"ParentIndexNumber"`
-						Number *int   `json:"IndexNumber"`
-						End    *int   `json:"IndexNumberEnd"`
-					} `json:"Items"`
-				}
-				if e := readJSON(ctx, p.client(), p.BaseURL+"/Items?"+q.Encode(), p.headers(), &response); e != nil {
-					return e
-				}
-				total = response.Total
-				for _, v := range response.Items {
-					entries = append(entries, entry{v.ID, v.Path, v.Season, v.Number, v.End})
-				}
-			} else {
-				q := url.Values{"X-Plex-Container-Start": {strconv.Itoa(offset)}, "X-Plex-Container-Size": {"200"}}
-				var response struct {
-					Container struct {
-						Total int `json:"totalSize"`
-						Items []struct {
-							ID     string `json:"ratingKey"`
-							Season *int   `json:"parentIndex"`
-							Number *int   `json:"index"`
-							Media  []struct {
-								Parts []struct {
-									File string `json:"file"`
-								} `json:"Part"`
-							} `json:"Media"`
-						} `json:"Metadata"`
-					} `json:"MediaContainer"`
-				}
-				if e := readJSON(ctx, p.client(), p.BaseURL+"/library/metadata/"+url.PathEscape(t.ID)+"/allLeaves?"+q.Encode(), p.headers(), &response); e != nil {
-					return e
-				}
-				total = response.Container.Total
-				for _, v := range response.Container.Items {
-					path := ""
-					for _, m := range v.Media {
-						for _, part := range m.Parts {
-							if path == "" {
-								path = part.File
-							}
-						}
-					}
-					entries = append(entries, entry{ID: v.ID, Path: path, Season: v.Season, Number: v.Number})
-				}
+			entries, total, err := p.episodeInventoryPage(ctx, t.ID, offset)
+			if err != nil {
+				return err
 			}
 			if len(entries) == 0 {
 				if offset < total {
@@ -96,27 +101,26 @@ func (p *MediaServer) Inventory(ctx context.Context, emit func(InventoryItem) er
 				return nil
 			}
 			for _, v := range entries {
-				if v.ID == "" || seen[v.ID] {
+				if v.id == "" || seen[v.id] {
 					return errors.New("invalid or repeated episode page")
 				}
-				seen[v.ID] = true
+				seen[v.id] = true
 				numbers := []int{}
-				if v.Number != nil && *v.Number > 0 {
-					end := *v.Number
-					if v.End != nil && *v.End >= end && *v.End-end < 100 {
-						end = *v.End
-					}
-					for n := *v.Number; n <= end; n++ {
-						numbers = append(numbers, n)
+				if v.number != nil && *v.number > 0 {
+					numbers = append(numbers, *v.number)
+					if v.end != nil && *v.end > *v.number && *v.end-*v.number < 100 {
+						for n := 1; n <= *v.end-*v.number; n++ {
+							numbers = append(numbers, *v.number+n)
+						}
 					}
 				}
-				season := 0
-				known := v.Season != nil && *v.Season >= 0
-				if known {
-					season = *v.Season
+				item := InventoryItem{Title: t, Key: v.id, ItemKey: v.id, Path: v.path, Episodes: numbers}
+				if v.season != nil && *v.season >= 0 {
+					item.Season = *v.season
+					item.SeasonKnown = true
 				}
-				if e := emit(InventoryItem{Title: t, Key: v.ID, Path: v.Path, Season: season, SeasonKnown: known, Episodes: numbers}); e != nil {
-					return e
+				if err := item.emitCopies(v.copies, observedAt, emit); err != nil {
+					return err
 				}
 			}
 			offset += len(entries)
@@ -126,6 +130,39 @@ func (p *MediaServer) Inventory(ctx context.Context, emit func(InventoryItem) er
 		}
 		return errors.New("episode inventory exceeds limit")
 	})
+}
+
+func (p *MediaServer) episodeInventoryPage(ctx context.Context, seriesID string, offset int) ([]episodeInventoryEntry, int, error) {
+	if p.Kind == "jellyfin" {
+		q := url.Values{"ParentId": {seriesID}, "Recursive": {"true"}, "IncludeItemTypes": {"Episode"}, "Fields": {"Path,MediaSources,MediaStreams"}, "StartIndex": {strconv.Itoa(offset)}, "Limit": {strconv.Itoa(mediaInventoryPageSize)}}
+		var page jellyfinItemPage
+		if err := readJSON(ctx, p.client(), p.BaseURL+"/Items?"+q.Encode(), p.headers(), &page); err != nil {
+			return nil, 0, err
+		}
+		entries := make([]episodeInventoryEntry, 0, len(page.Items))
+		for _, item := range page.Items {
+			copies, err := p.jellyfinCopies(ctx, item)
+			if err != nil {
+				return nil, 0, err
+			}
+			entries = append(entries, episodeInventoryEntry{id: item.ID, path: item.Path, season: item.Season, number: item.Number, end: item.End, copies: copies})
+		}
+		return entries, page.Total, nil
+	}
+	q := url.Values{"X-Plex-Container-Start": {strconv.Itoa(offset)}, "X-Plex-Container-Size": {"200"}}
+	var page plexItemPage
+	if err := readJSON(ctx, p.client(), p.BaseURL+"/library/metadata/"+url.PathEscape(seriesID)+"/allLeaves?"+q.Encode(), p.headers(), &page); err != nil {
+		return nil, 0, err
+	}
+	p.fillPlexPartDetails(ctx, page.Container.Items)
+	if err := ctx.Err(); err != nil {
+		return nil, 0, err
+	}
+	entries := make([]episodeInventoryEntry, 0, len(page.Container.Items))
+	for _, item := range page.Container.Items {
+		entries = append(entries, episodeInventoryEntry{id: item.ID, season: item.Season, number: item.Number, copies: item.copies()})
+	}
+	return entries, page.Container.Total, nil
 }
 
 // SuggestedName is a best-effort display hint. It never replaces a user label.
@@ -153,4 +190,26 @@ func (p *MediaServer) SuggestedName(ctx context.Context) string {
 		return u.Hostname()
 	}
 	return p.Kind
+}
+
+func firstKnown[T comparable](first, second T) T {
+	var zero T
+	if first != zero {
+		return first
+	}
+	return second
+}
+
+func positive[T int | int64 | float64](value *T) *T {
+	if value != nil && *value > 0 {
+		return value
+	}
+	return nil
+}
+
+func nonnegative(value *int64) *int64 {
+	if value != nil && *value >= 0 {
+		return value
+	}
+	return nil
 }

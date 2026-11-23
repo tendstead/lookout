@@ -3,10 +3,14 @@ package enrichment
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"github.com/tendstead/lookout/internal/library"
 	"github.com/tendstead/lookout/internal/metadata"
 	"github.com/tendstead/lookout/internal/store"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 )
@@ -30,6 +34,7 @@ func (s *Service) ImportInventory(ctx context.Context, id string, c metadata.Med
 	}
 	scans := map[string]string{}
 	counts := map[string]int{}
+	matchedTitles := map[string]bool{}
 	defer func() {
 		for kind, scan := range scans {
 			finish, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -60,7 +65,7 @@ func (s *Service) ImportInventory(ctx context.Context, id string, c metadata.Med
 		}
 		scans[kind] = scan
 	}
-	err = c.Inventory(ctx, func(item metadata.InventoryItem) error {
+	observe := func(item metadata.InventoryItem, itemKeys []string) error {
 		kind := item.Title.Kind
 		scan, ok := scans[kind]
 		if !ok {
@@ -72,14 +77,19 @@ func (s *Service) ImportInventory(ctx context.Context, id string, c metadata.Med
 		}
 		// Item IDs are stable even when a provider hides physical paths. Each API
 		// entry is evidence of availability, not a downloaded or directly playable file.
-		f := library.FileObservation{SourceID: inventorySource(id, kind), Group: item.Title.ID, RelativePath: item.Key, Category: kind, Storage: "file", Modified: time.Unix(0, 0), Title: library.Metadata{Title: item.Title.Name, Year: item.Title.Year, Overview: item.Title.Overview, ProviderIDs: item.Title.ProviderIDs, Provenance: c.Kind}, Season: item.Season, Episodes: item.Episodes, Numbering: numbering}
+		f := library.FileObservation{SourceID: inventorySource(id, kind), Group: item.Title.ID, RelativePath: item.Key, Category: kind, Storage: "file", Modified: time.Unix(0, 0), Title: library.Metadata{Title: item.Title.Name, Year: item.Title.Year, Overview: item.Title.Overview, ProviderIDs: item.Title.ProviderIDs, Provenance: c.Kind}, Season: item.Season, Episodes: item.Episodes, Numbering: numbering, Technical: item.Technical, APIItemKeys: itemKeys, ReportedPath: item.Path, ProviderRevision: item.Revision}
+		if f.Technical != nil && f.Technical.SizeBytes != nil {
+			f.Size = *f.Technical.SizeBytes
+		}
 		if e := s.Store.Observe(ctx, scan, f); e != nil {
 			return e
 		}
-		if e := s.Store.ReportedPath(ctx, f.SourceID, f.RelativePath, item.Path); e != nil {
-			return e
-		}
 		counts[kind]++
+		r.Matched++
+		if matchedTitles[kind+":"+item.Title.ID] {
+			return nil
+		}
+		matchedTitles[kind+":"+item.Title.ID] = true
 		targets, e := s.Store.MetadataTargets(ctx, f.SourceID, item.Title.ID, "series")
 		if e != nil {
 			return e
@@ -92,9 +102,53 @@ func (s *Service) ImportInventory(ctx context.Context, id string, c metadata.Med
 				return e
 			}
 		}
-		r.Matched++
+		return nil
+	}
+
+	type pendingFile struct {
+		item     metadata.InventoryItem
+		itemKeys []string
+	}
+	pending := map[string]pendingFile{}
+	flush := func() error {
+		for _, key := range slices.Sorted(maps.Keys(pending)) {
+			file := pending[key]
+			if e := observe(file.item, file.itemKeys); e != nil {
+				return e
+			}
+		}
+		clear(pending)
+		return nil
+	}
+	err = c.InventoryWithTitles(ctx, func(metadata.ServerItem) error { return flush() }, func(item metadata.InventoryItem) error {
+		if c.Kind != "plex" || item.Title.Kind != "series" || !item.SeasonKnown || item.Path == "" {
+			return observe(item, []string{item.ItemKey})
+		}
+		// Plex can report the same physical file once per covered episode.
+		// Coalesce within a title and season without relying on entry order.
+		digest := sha256.Sum256([]byte(fmt.Sprintf("%q:%d:%q", item.Title.ID, item.Season, item.Path)))
+		key := fmt.Sprintf("plex-file:%x", digest)
+		file, exists := pending[key]
+		if !exists {
+			item.Key = key
+			pending[key] = pendingFile{item: item, itemKeys: []string{item.ItemKey}}
+			return nil
+		}
+		file.itemKeys = append(file.itemKeys, item.ItemKey)
+		episodes := slices.Concat(file.item.Episodes, item.Episodes)
+		slices.Sort(episodes)
+		file.item.Episodes = slices.Compact(episodes)
+		if item.Technical != nil && (file.item.Technical == nil || item.ItemKey < file.item.ItemKey) {
+			file.item.ItemKey = item.ItemKey
+			file.item.Technical = item.Technical
+			file.item.Revision = item.Revision
+		}
+		pending[key] = file
 		return nil
 	})
+	if err == nil {
+		err = flush()
+	}
 	return r, err
 }
 

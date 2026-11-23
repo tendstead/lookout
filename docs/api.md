@@ -19,6 +19,7 @@ work returns 202; a busy/disabled worker returns 409. Errors have the form
 | `/api/v1/titles` | GET, HEAD | `{items,total,limit,offset}`; `q`, `category`, `server` (stable server ID), `limit` (1–100, default48), `offset`. |
 | `/api/v1/titles/suggestions` | GET, HEAD | Local-only `{items:[{id,name,category,year?}]}`; `q` (2–300 characters), optional `category`, `server`; at most 8 observed/stable titles. |
 | `/api/v1/titles/{id}` | GET, HEAD | Title metadata and observed files. |
+| `/api/v1/file-differences` | GET, HEAD | `{items,limit,offset,has_more}`. Each item has `title_id`, `title_name`, `has_artwork`, optional `season` and `episode`, and `files`. Paginate with `limit` (1–100, default 48) and `offset`. |
 | `/api/v1/servers` | GET, HEAD | `{items:[{id,name,scan_hours,stale_hours,status,last_success}]}`. |
 | `/api/v1/servers/{id}` | POST | `{name,scan_hours,stale_hours}`; editable display name and inventory timing. |
 | `/api/v1/wanted` | GET, HEAD | `{items}` with aggregate status and per-server matching content. |
@@ -91,3 +92,5 @@ never deletes original inventory evidence. Availability states are `available`,
 `missing`, `uncertain`; server health additionally uses ready/scanning/stale/error/pending.
 Wanted POST accepts only movie/series categories; an episode requires a season and
 only episodic requests accept season/episode. Provider IDs use imdb/tmdb/tvdb/tvmaze/anidb.
+
+Title details and file difference groups expose `file_size` when known (bytes), an opaque `copy_revision`, and optional `technical` metadata. Technical profiles report their provider and observation time, optional media and part identity, and provider-reported properties. Rates are bits per second and duration is milliseconds. Nullable audio and subtitle collections indicate unavailable track data. File difference groups contain observed copies from different servers and ignore filesystem timestamps.

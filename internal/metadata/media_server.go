@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -63,13 +64,17 @@ func (p *MediaServer) Validate() error {
 	return nil
 }
 func (p *MediaServer) Titles(ctx context.Context, emit func(ServerItem) error) error {
+	return p.titles(ctx, false, func(title ServerItem, _ []inventoryCopy) error { return emit(title) })
+}
+
+func (p *MediaServer) titles(ctx context.Context, inventory bool, emit func(ServerItem, []inventoryCopy) error) error {
 	if e := p.Validate(); e != nil {
 		return e
 	}
 	if p.Kind == "jellyfin" {
-		return p.jellyfin(ctx, emit)
+		return p.jellyfin(ctx, inventory, emit)
 	}
-	return p.plex(ctx, emit)
+	return p.plex(ctx, inventory, emit)
 }
 func (p *MediaServer) Verify(ctx context.Context) error {
 	if e := p.Validate(); e != nil {
@@ -94,7 +99,7 @@ func normalizedIDs(ids map[string]string) map[string]string {
 	}
 	return out
 }
-func (p *MediaServer) jellyfin(ctx context.Context, emit func(ServerItem) error) error {
+func (p *MediaServer) jellyfin(ctx context.Context, inventory bool, emit func(ServerItem, []inventoryCopy) error) error {
 	limit := p.PageSize
 	if limit < 1 || limit > 200 {
 		limit = 200
@@ -102,22 +107,11 @@ func (p *MediaServer) jellyfin(ctx context.Context, emit func(ServerItem) error)
 	seen := map[string]bool{}
 	for offset := 0; offset < 100000; {
 		q := url.Values{"Recursive": {"true"}, "IncludeItemTypes": {"Movie,Series"}, "Fields": {"ProviderIds,Path,Overview,Genres"}, "StartIndex": {strconv.Itoa(offset)}, "Limit": {strconv.Itoa(limit)}}
-		var response struct {
-			Total int `json:"TotalRecordCount"`
-			Items []struct {
-				ID           string            `json:"Id"`
-				Name         string            `json:"Name"`
-				Type         string            `json:"Type"`
-				Path         string            `json:"Path"`
-				Year         int               `json:"ProductionYear"`
-				Overview     string            `json:"Overview"`
-				IDs          map[string]string `json:"ProviderIds"`
-				Images       map[string]string `json:"ImageTags"`
-				MediaSources []struct {
-					Path string `json:"Path"`
-				} `json:"MediaSources"`
-			} `json:"Items"`
+		if inventory {
+			q.Set("Fields", q.Get("Fields")+",MediaSources,MediaStreams")
+			q.Set("Limit", strconv.Itoa(min(limit, mediaInventoryPageSize)))
 		}
+		var response jellyfinItemPage
 		if e := readJSON(ctx, p.client(), p.BaseURL+"/Items?"+q.Encode(), p.headers(), &response); e != nil {
 			return e
 		}
@@ -149,7 +143,20 @@ func (p *MediaServer) jellyfin(ctx context.Context, emit func(ServerItem) error)
 			if i.Type == "Series" {
 				kind = "series"
 			}
-			if e := emit(ServerItem{ID: i.ID, Name: i.Name, Kind: kind, Year: i.Year, Overview: i.Overview, ProviderIDs: normalizedIDs(i.IDs), Paths: paths, ImagePath: image}); e != nil {
+			var copies []inventoryCopy
+			if inventory && kind == "movie" {
+				var err error
+				copies, err = p.jellyfinCopies(ctx, i)
+				if err != nil {
+					return err
+				}
+				for _, copy := range copies {
+					if copy.path != "" && !slices.Contains(paths, copy.path) {
+						paths = append(paths, copy.path)
+					}
+				}
+			}
+			if e := emit(ServerItem{ID: i.ID, Name: i.Name, Kind: kind, Year: i.Year, Overview: i.Overview, ProviderIDs: normalizedIDs(i.IDs), Paths: paths, ImagePath: image}, copies); e != nil {
 				return e
 			}
 		}
@@ -160,7 +167,7 @@ func (p *MediaServer) jellyfin(ctx context.Context, emit func(ServerItem) error)
 	}
 	return errors.New("media-server item limit reached")
 }
-func (p *MediaServer) plex(ctx context.Context, emit func(ServerItem) error) error {
+func (p *MediaServer) plex(ctx context.Context, inventory bool, emit func(ServerItem, []inventoryCopy) error) error {
 	var sections struct {
 		Container struct {
 			Directories []struct {
@@ -178,31 +185,7 @@ func (p *MediaServer) plex(ctx context.Context, emit func(ServerItem) error) err
 		}
 		for offset := 0; offset < 100000; {
 			q := url.Values{"X-Plex-Container-Start": {strconv.Itoa(offset)}, "X-Plex-Container-Size": {"200"}, "includeGuids": {"1"}}
-			var response struct {
-				Container struct {
-					Total int `json:"totalSize"`
-					Size  int `json:"size"`
-					Items []struct {
-						ID      string `json:"ratingKey"`
-						Name    string `json:"title"`
-						Type    string `json:"type"`
-						Year    int    `json:"year"`
-						Summary string `json:"summary"`
-						Thumb   string `json:"thumb"`
-						GUIDs   []struct {
-							ID string `json:"id"`
-						} `json:"Guid"`
-						Locations []struct {
-							Path string `json:"path"`
-						} `json:"Location"`
-						Media []struct {
-							Parts []struct {
-								File string `json:"file"`
-							} `json:"Part"`
-						} `json:"Media"`
-					} `json:"Metadata"`
-				} `json:"MediaContainer"`
-			}
+			var response plexItemPage
 			if e := readJSON(ctx, p.client(), p.BaseURL+"/library/sections/"+url.PathEscape(section.Key)+"/all?"+q.Encode(), p.headers(), &response); e != nil {
 				return e
 			}
@@ -211,6 +194,12 @@ func (p *MediaServer) plex(ctx context.Context, emit func(ServerItem) error) err
 					return errors.New("incomplete Plex page")
 				}
 				break
+			}
+			if inventory && section.Type == "movie" {
+				p.fillPlexPartDetails(ctx, response.Container.Items)
+				if err := ctx.Err(); err != nil {
+					return err
+				}
 			}
 			for _, i := range response.Container.Items {
 				ids := map[string]string{}
@@ -243,7 +232,11 @@ func (p *MediaServer) plex(ctx context.Context, emit func(ServerItem) error) err
 				if strings.HasPrefix(i.Thumb, "/library/metadata/") {
 					image = i.Thumb
 				}
-				if e := emit(ServerItem{ID: i.ID, Name: i.Name, Kind: kind, Year: i.Year, Overview: i.Summary, ProviderIDs: ids, Paths: paths, ImagePath: image}); e != nil {
+				var copies []inventoryCopy
+				if inventory && kind == "movie" {
+					copies = i.copies()
+				}
+				if e := emit(ServerItem{ID: i.ID, Name: i.Name, Kind: kind, Year: i.Year, Overview: i.Summary, ProviderIDs: ids, Paths: paths, ImagePath: image}, copies); e != nil {
 					return e
 				}
 			}

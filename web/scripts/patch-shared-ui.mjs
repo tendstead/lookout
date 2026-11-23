@@ -1,15 +1,20 @@
-// Local compatibility patch for @tendstead/ui 0.1.2 (MIT).
+// Local compatibility patch for @tendstead/ui (MIT).
 // Remove when the published package exposes translated shell labels.
 import { readFileSync, writeFileSync } from 'node:fs';
 const root = new URL('../node_modules/@tendstead/ui/', import.meta.url);
 const pkg = JSON.parse(readFileSync(new URL('package.json', root), 'utf8'));
-if (pkg.version !== '0.1.2')
+const consumer = JSON.parse(
+  readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+);
+if (pkg.version !== consumer.dependencies['@tendstead/ui'])
   throw new Error(
-    'Review the Lookout shell locale patch for the updated @tendstead/ui',
+    'The installed @tendstead/ui must match the version pinned in package.json',
   );
 const app = new URL('dist/AppShell.svelte', root);
 let s = readFileSync(app, 'utf8');
 if (!s.includes("locale='en'")) {
+  if (!s.includes('let { brand,'))
+    throw new Error('The shared shell prop declaration changed');
   s = s.replace('let { brand,', "let { locale='en', brand,");
   for (const [en, de] of Object.entries({
     'Connected services': 'Verbundene Dienste',

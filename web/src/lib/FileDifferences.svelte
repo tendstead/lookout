@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { Modal } from '@tendstead/ui';
   import FileComparison from './FileComparison.svelte';
   import Icon from './Icon.svelte';
   import {
@@ -23,7 +24,7 @@
   let failed = $state(false);
   let hasMore = $state(false);
   let offset = 0;
-  let dialog: HTMLDialogElement;
+  let openingCard = $state<HTMLButtonElement>();
   let activeTitleID = $state<string>();
   let selectedIndex = $state(0);
   const hiddenCount = $derived(
@@ -57,14 +58,14 @@
   );
   const active = $derived(activeGroups?.[selectedIndex] ?? activeGroups?.[0]);
 
-  $effect(() => {
-    if (activeTitleID && !active) dialog.close();
-  });
-
-  function openCard(group: DifferenceGroup) {
+  function openCard(group: DifferenceGroup, button: HTMLButtonElement) {
+    openingCard = button;
     activeTitleID = group.title_id;
     selectedIndex = 0;
-    dialog.showModal();
+  }
+
+  function setModalOpen(open: boolean) {
+    if (!open) activeTitleID = undefined;
   }
 
   function isHidden(file: FileItem) {
@@ -136,7 +137,8 @@
       <button
         type="button"
         class="title-card difference-card"
-        onclick={() => openCard(group)}
+        aria-haspopup="dialog"
+        onclick={(event) => openCard(group, event.currentTarget)}
       >
         <span class="title-art" aria-hidden="true">
           {#if group.has_artwork}
@@ -163,20 +165,13 @@
     {/each}
   </div>
 
-  <dialog
-    bind:this={dialog}
-    aria-labelledby="difference-dialog-title"
-    onclose={() => (activeTitleID = undefined)}
+  <Modal
+    title={active?.title_name ?? ''}
+    closeLabel={t('closeComparison')}
+    bind:open={() => active !== undefined, setModalOpen}
+    returnFocus={openingCard}
   >
     {#if active}
-      <div class="dialog-heading">
-        <h2 id="difference-dialog-title">{active.title_name}</h2>
-        <button
-          type="button"
-          class="catalogue-button secondary"
-          onclick={() => dialog.close()}>{t('closeComparison')}</button
-        >
-      </div>
       {#if activeGroups && activeGroups.length > 1}
         <label class="episode-picker">
           {t('episode')}
@@ -221,7 +216,7 @@
         >{t('openComparisonTitle')}</a
       >
     {/if}
-  </dialog>
+  </Modal>
   {#if failed}
     <p class="catalogue-message" role="alert">{t('libraryError')}</p>
     <button class="catalogue-button" onclick={() => void load()}
@@ -264,32 +259,6 @@
   .card-title {
     font-size: 0.875rem;
     font-weight: 600;
-    overflow-wrap: anywhere;
-  }
-  dialog {
-    width: min(960px, calc(100% - 24px));
-    max-height: calc(100% - 24px);
-    max-width: none;
-    box-sizing: border-box;
-    padding: 16px;
-    border: 1px solid var(--ts-border);
-    border-radius: 12px;
-    background: var(--ts-surface);
-    color: var(--ts-text);
-  }
-  dialog::backdrop {
-    background: rgb(0 0 0 / 60%);
-  }
-  .dialog-heading {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 12px;
-  }
-  h2 {
-    font-size: 1.125rem;
-    margin: 0;
     overflow-wrap: anywhere;
   }
   .episode-picker,

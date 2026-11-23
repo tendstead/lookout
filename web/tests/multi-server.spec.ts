@@ -292,7 +292,7 @@ test('dismissed copies persist and reappear when restored or revised', async ({
     .getByRole('link', { name: 'File differences', exact: true })
     .click();
   const title = page.getByRole('button', { name: /Synthetic series/ });
-  const dialog = page.getByRole('dialog');
+  const dialog = page.getByRole('dialog', { name: 'Synthetic series' });
   await expect(title).toBeVisible();
   await expect(page.getByText('3840 × 2160', { exact: true })).toHaveCount(0);
   await page
@@ -304,12 +304,23 @@ test('dismissed copies persist and reappear when restored or revised', async ({
   await page
     .getByRole('button', { name: 'Show differences', exact: true })
     .click();
-  await title.click();
+  await page
+    .getByRole('button', { name: 'Show hidden (0)', exact: true })
+    .focus();
+  await title.evaluate((button: HTMLButtonElement) => button.click());
   await expect(dialog.getByText('3840 × 2160', { exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(title).toBeFocused();
+  await title.click();
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await title.click();
   await page
     .getByRole('button', { name: 'Hide copy', exact: true })
     .first()
     .click();
+  await expect(dialog).toBeHidden();
   await page.reload();
   await expect(
     page.getByText('No file differences to show.', { exact: true }),

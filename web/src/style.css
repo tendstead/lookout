@@ -867,11 +867,18 @@ dd a {
 }
 .server-filter select {
   max-width: 100%;
-  padding: 8px;
-  border: 1px solid #8886;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--ts-primary);
   border-radius: 8px;
-  background: var(--ts-color-surface, #fff);
-  color: inherit;
+  background: var(--ts-selection);
+  color: var(--ts-on-selection);
+  font: inherit;
+  cursor: pointer;
+}
+.server-filter option {
+  background: var(--ts-surface);
+  color: var(--ts-text);
 }
 .wanted-form {
   max-width: 650px;

@@ -6,6 +6,7 @@
   import LibraryIcon from './lib/LibraryIcon.svelte';
   import SystemIcon from './lib/SystemIcon.svelte';
   import Library from './lib/Library.svelte';
+  import FileDifferences from './lib/FileDifferences.svelte';
   import Connections from './lib/Connections.svelte';
   import Releases from './lib/Releases.svelte';
   import Servers from './lib/Servers.svelte';
@@ -13,6 +14,7 @@
   let locale = $state<Locale>('en');
   let dark = $state(false);
   let limitWidth = $state(false);
+  let showFlags = $state(false);
   let pathname = $state(window.location.pathname);
   let checking = $state(true);
   let readOnly = $state(true);
@@ -29,6 +31,12 @@
       icon: SystemIcon,
     },
     { id: 'wanted', label: t('wanted'), href: '/wanted', icon: LibraryIcon },
+    {
+      id: 'file-differences',
+      label: t('fileDifferences'),
+      href: '/file-differences',
+      icon: LibraryIcon,
+    },
     { id: 'servers', label: t('servers'), href: '/servers', icon: SystemIcon },
     { id: 'sources', label: t('sources'), href: '/sources', icon: SystemIcon },
     {
@@ -39,6 +47,7 @@
     },
     { id: 'system', label: t('system'), href: '/system', icon: SystemIcon },
   ]);
+  const isFileDifferences = $derived(pathname === '/file-differences');
   const isWanted = $derived(pathname === '/wanted');
   const isServers = $derived(pathname === '/servers');
   const isSystem = $derived(pathname === '/system');
@@ -69,7 +78,7 @@
   $effect(() => {
     document.documentElement.lang = locale;
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-    document.title = `${isSystem ? t('system') : isConnections ? t('connections') : t('overview')} · Lookout`;
+    document.title = `${isFileDifferences ? t('fileDifferences') : isSystem ? t('system') : isConnections ? t('connections') : t('overview')} · Lookout`;
   });
   async function check() {
     checking = true;
@@ -107,6 +116,7 @@
       locale = storedLocale(localStorage.getItem('lookout.locale'));
       dark = localStorage.getItem('lookout.theme') === 'dark';
       limitWidth = localStorage.getItem('lookout.limitWidth') === 'true';
+      showFlags = localStorage.getItem('lookout.showLanguageFlags') === 'true';
     } catch {
       /* use defaults */
     }
@@ -129,21 +139,23 @@
 <AppShell
   brand="Tendstead"
   appLabel="Lookout"
-  pageTitle={isWanted
-    ? t('wanted')
-    : isServers
-      ? t('servers')
-      : isReleases
-        ? t('releases')
-        : isConnections
-          ? t('connections')
-          : isSystem
-            ? t('system')
-            : isSources
-              ? t('sources')
-              : isDetail
-                ? t('library')
-                : t('overview')}
+  pageTitle={isFileDifferences
+    ? t('fileDifferences')
+    : isWanted
+      ? t('wanted')
+      : isServers
+        ? t('servers')
+        : isReleases
+          ? t('releases')
+          : isConnections
+            ? t('connections')
+            : isSystem
+              ? t('system')
+              : isSources
+                ? t('sources')
+                : isDetail
+                  ? t('library')
+                  : t('overview')}
   {pathname}
   {destinations}
   mobilePrimaryIds={['overview', 'releases', 'sources']}
@@ -187,14 +199,20 @@
     class:width-limited={isGallery && limitWidth}
   >
     {#if !isSystem}
-      {#if !isWanted && !isServers && !isSources && !isDetail && !isConnections && !isReleases}<section
+      {#if !isWanted && !isServers && !isSources && !isDetail && !isConnections && !isReleases && !isFileDifferences}<section
           class="intro"
         >
           <p class="eyebrow">{t('local')}</p>
           <h2>{t('headline')}</h2>
           <p class="lead">{t('intro')}</p>
         </section>{/if}
-      {#if isWanted}<Wanted {locale} {readOnly} />{:else if isServers}<Servers
+      {#if isFileDifferences}<FileDifferences
+          {locale}
+          {showFlags}
+        />{:else if isWanted}<Wanted
+          {locale}
+          {readOnly}
+        />{:else if isServers}<Servers
           {locale}
           {readOnly}
         />{:else if isReleases}<Releases
@@ -206,6 +224,7 @@
         />{:else}{#key pathname}<Library
             {locale}
             {readOnly}
+            {showFlags}
             mode={isSources ? 'sources' : isDetail ? 'detail' : 'overview'}
             titleID={isDetail ? pathname.slice('/titles/'.length) : ''}
           />{/key}{/if}
@@ -262,6 +281,22 @@
       </p>
     </section>
     {#if isSystem}
+      <section class="details-card">
+        <h3>{t('preferences')}</h3>
+        <p>
+          <label class="flag-setting">
+            <input
+              type="checkbox"
+              checked={showFlags}
+              onchange={(event) => {
+                showFlags = event.currentTarget.checked;
+                save('lookout.showLanguageFlags', String(showFlags));
+              }}
+            />
+            {t('showLanguageFlags')}
+          </label>
+        </p>
+      </section>
       <section class="details-card">
         <h3>{t('architecture')}</h3>
         <p>{t('architectureText')}</p>

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/jackc/pgx/v5"
+	"github.com/tendstead/lookout/internal/library"
 	"time"
 )
 
@@ -46,22 +47,26 @@ type TitlePage struct {
 	Offset int     `json:"offset"`
 }
 type MediaFile struct {
-	Adapter       string    `json:"adapter"`
-	ReportedPath  string    `json:"reported_path,omitempty"`
-	ServerID      string    `json:"server_id"`
-	ServerName    string    `json:"server_name"`
-	SourceID      string    `json:"source_id"`
-	Storage       string    `json:"storage"`
-	ArchiveMember string    `json:"archive_member,omitempty"`
-	ID            int64     `json:"id"`
-	RelativePath  string    `json:"relative_path"`
-	Size          int64     `json:"size"`
-	Modified      time.Time `json:"modified"`
-	Season        *int      `json:"season"`
-	Episodes      []int     `json:"episodes"`
-	Numbering     string    `json:"numbering"`
-	EpisodeTitle  string    `json:"episode_title"`
-	Observation   string    `json:"observation"`
+	providerRevision string
+	Technical        *library.TechnicalProfile `json:"technical,omitempty"`
+	FileSize         *int64                    `json:"file_size,omitempty"`
+	CopyRevision     string                    `json:"copy_revision"`
+	Adapter          string                    `json:"adapter"`
+	ReportedPath     string                    `json:"reported_path,omitempty"`
+	ServerID         string                    `json:"server_id"`
+	ServerName       string                    `json:"server_name"`
+	SourceID         string                    `json:"source_id"`
+	Storage          string                    `json:"storage"`
+	ArchiveMember    string                    `json:"archive_member,omitempty"`
+	ID               int64                     `json:"id"`
+	RelativePath     string                    `json:"relative_path"`
+	Size             int64                     `json:"size"`
+	Modified         time.Time                 `json:"modified"`
+	Season           *int                      `json:"season"`
+	Episodes         []int                     `json:"episodes"`
+	Numbering        string                    `json:"numbering"`
+	EpisodeTitle     string                    `json:"episode_title"`
+	Observation      string                    `json:"observation"`
 }
 type TitleDetail struct {
 	Title
@@ -136,6 +141,23 @@ func readTitle(row pgx.Row) (Title, error) {
 
 var ErrNotFound = errors.New("not found")
 
+const mediaFileColumns = `f.id,f.relative_path,f.size,f.modified_at,f.season,f.episodes,f.numbering,f.episode_title,f.observation,f.storage,f.archive_member,ls.server_id,v.name,f.source_id,ls.adapter,f.reported_path,f.technical,f.provider_revision`
+
+func readMediaFile(row pgx.Row, extra ...any) (MediaFile, error) {
+	var f MediaFile
+	fields := []any{&f.ID, &f.RelativePath, &f.Size, &f.Modified, &f.Season, &f.Episodes, &f.Numbering, &f.EpisodeTitle, &f.Observation, &f.Storage, &f.ArchiveMember, &f.ServerID, &f.ServerName, &f.SourceID, &f.Adapter, &f.ReportedPath, &f.Technical, &f.providerRevision}
+	if err := row.Scan(append(extra, fields...)...); err != nil {
+		return f, err
+	}
+	if f.Adapter != "jellyfin" && f.Adapter != "plex" {
+		f.FileSize = &f.Size
+	} else if f.Technical != nil {
+		f.FileSize = f.Technical.SizeBytes
+	}
+	f.CopyRevision = fileRevision(f)
+	return f, nil
+}
+
 func (s *Store) GetTitle(ctx context.Context, id string) (TitleDetail, error) {
 	out := TitleDetail{Files: []MediaFile{}, Members: []TitleMember{}}
 	canonical, e := s.CanonicalID(ctx, id)
@@ -150,13 +172,13 @@ func (s *Store) GetTitle(ctx context.Context, id string) (TitleDetail, error) {
 	if e != nil {
 		return out, e
 	}
-	rows, e := s.pool.Query(ctx, `SELECT f.id,f.relative_path,f.size,f.modified_at,f.season,f.episodes,f.numbering,f.episode_title,f.observation,f.storage,f.archive_member,ls.server_id,v.name,f.source_id,ls.adapter,f.reported_path FROM library_files f JOIN title_identity i ON i.id=f.title_id JOIN library_sources ls ON ls.id=f.source_id JOIN library_servers v ON v.id=ls.server_id WHERE i.canonical_id::text=$1 ORDER BY v.name,f.season NULLS LAST,f.relative_path`, canonical)
+	rows, e := s.pool.Query(ctx, `SELECT `+mediaFileColumns+` FROM library_files f JOIN title_identity i ON i.id=f.title_id JOIN library_sources ls ON ls.id=f.source_id JOIN library_servers v ON v.id=ls.server_id WHERE i.canonical_id::text=$1 ORDER BY v.name,f.season NULLS LAST,f.relative_path`, canonical)
 	if e != nil {
 		return out, e
 	}
 	for rows.Next() {
-		var f MediaFile
-		if e = rows.Scan(&f.ID, &f.RelativePath, &f.Size, &f.Modified, &f.Season, &f.Episodes, &f.Numbering, &f.EpisodeTitle, &f.Observation, &f.Storage, &f.ArchiveMember, &f.ServerID, &f.ServerName, &f.SourceID, &f.Adapter, &f.ReportedPath); e != nil {
+		f, e := readMediaFile(rows)
+		if e != nil {
 			rows.Close()
 			return out, e
 		}

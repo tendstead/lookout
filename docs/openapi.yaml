@@ -353,6 +353,74 @@
         ]
       }
     },
+    "/api/v1/file-differences": {
+      "get": {
+        "summary": "List cross-server technical file differences",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 48
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        }
+      },
+      "head": {
+        "summary": "List cross-server technical file differences (headers only)",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 48
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; response contract in docs/api.md"
+          },
+          "default": {
+            "description": "Structured JSON error; see docs/api.md"
+          }
+        }
+      }
+    },
     "/api/v1/sources": {
       "get": {
         "summary": "List sources and scan status",

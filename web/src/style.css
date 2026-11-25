@@ -893,3 +893,12 @@ dd a {
 .connection-form input {
   max-width: 100%;
 }
+
+.flag-setting {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--ts-text);
+}

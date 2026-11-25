@@ -15,6 +15,7 @@ import (
 type LibraryStore interface {
 	ListTitles(context.Context, store.TitleQuery) (store.TitlePage, error)
 	GetTitle(context.Context, string) (store.TitleDetail, error)
+	ListFileDifferences(context.Context, int, int) (store.FileDifferencePage, error)
 	ListSources(context.Context) ([]store.Source, error)
 }
 type ScanRequester interface{ RequestScan(string) error }
@@ -109,6 +110,23 @@ func (o apiOptions) serveCatalogue(w http.ResponseWriter, r *http.Request) bool 
 			apiError(w, 503, "catalogue_unavailable", "Catalogue temporarily unavailable")
 		} else {
 			jsonResponse(w, 200, v)
+		}
+		return true
+	}
+	if p == "/api/v1/file-differences" {
+		if !readMethod(w, r) {
+			return true
+		}
+		q, err := titleQuery(r)
+		if err != nil {
+			apiError(w, 400, "invalid_query", "Invalid pagination")
+			return true
+		}
+		page, err := o.catalogue.ListFileDifferences(r.Context(), q.Limit, q.Offset)
+		if err != nil {
+			apiError(w, 503, "catalogue_unavailable", "File comparisons unavailable")
+		} else {
+			jsonResponse(w, 200, page)
 		}
 		return true
 	}

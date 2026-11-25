@@ -15,7 +15,7 @@
     "postinstall": "node scripts/patch-shared-ui.mjs"
   },
   "dependencies": {
-    "@tendstead/ui": "0.1.2",
+    "@tendstead/ui": "0.2.0",
     "svelte": "5.57.3"
   },
   "devDependencies": {

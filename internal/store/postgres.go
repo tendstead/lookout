@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tendstead/lookout/internal/config"
+	"slices"
 	"time"
 )
 
@@ -34,7 +35,7 @@ type migration struct {
 }
 
 func (s *Store) Migrate(ctx context.Context) error {
-	return s.migrate(ctx, []migration{{1, initial}, {2, catalogue}, {3, metadataSchema}, {4, releaseSchema}, {5, archiveSchema}, {6, serverSchema}, {7, wantedSchema}})
+	return s.migrate(ctx, []migration{{1, initial}, {2, catalogue}, {3, metadataSchema}, {4, releaseSchema}, {5, archiveSchema}, {6, serverSchema}, {7, wantedSchema}, {11, comparisonSchema}})
 }
 func (s *Store) apply(ctx context.Context, version int, sql string) error {
 	return s.migrate(ctx, []migration{{version, sql}})
@@ -55,21 +56,22 @@ func (s *Store) migrate(ctx context.Context, migrations []migration) error {
 	if _, err = tx.Exec(ctx, "CREATE TABLE IF NOT EXISTS lookout_schema_versions(version integer PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())"); err != nil {
 		return err
 	}
-	var current int
-	if err = tx.QueryRow(ctx, "SELECT COALESCE(max(version),0) FROM lookout_schema_versions").Scan(&current); err != nil {
+	var versions []int
+	if err = tx.QueryRow(ctx, "SELECT ARRAY(SELECT version FROM lookout_schema_versions ORDER BY version)").Scan(&versions); err != nil {
 		return err
 	}
-	if current > migrations[len(migrations)-1].version {
+	if len(versions) > 0 && versions[len(versions)-1] > migrations[len(migrations)-1].version {
 		return errors.New("database schema is newer than this application")
 	}
 	for _, m := range migrations {
-		if current < m.version {
-			if _, err = tx.Exec(ctx, m.sql); err != nil {
-				return err
-			}
-			if _, err = tx.Exec(ctx, "INSERT INTO lookout_schema_versions(version) VALUES ($1)", m.version); err != nil {
-				return fmt.Errorf("record migration: %w", err)
-			}
+		if _, applied := slices.BinarySearch(versions, m.version); applied {
+			continue
+		}
+		if _, err = tx.Exec(ctx, m.sql); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(ctx, "INSERT INTO lookout_schema_versions(version) VALUES ($1)", m.version); err != nil {
+			return fmt.Errorf("record migration: %w", err)
 		}
 	}
 	return tx.Commit(ctx)

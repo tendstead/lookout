@@ -1,9 +1,9 @@
-// Local compatibility patch for @tendstead/ui 0.1.2 (MIT).
+// Local compatibility patch for @tendstead/ui 0.2.0 (MIT).
 // Remove when the published package exposes translated shell labels.
 import { readFileSync, writeFileSync } from 'node:fs';
 const root = new URL('../node_modules/@tendstead/ui/', import.meta.url);
 const pkg = JSON.parse(readFileSync(new URL('package.json', root), 'utf8'));
-if (pkg.version !== '0.1.2')
+if (pkg.version !== '0.2.0')
   throw new Error(
     'Review the Lookout shell locale patch for the updated @tendstead/ui',
   );

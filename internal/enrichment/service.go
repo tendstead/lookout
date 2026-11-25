@@ -196,7 +196,7 @@ func (s *Service) ImportConnection(ctx context.Context, id string) (result Repor
 		return s.ImportInventory(ctx, id, c)
 	}
 	matched := map[string]bool{}
-	e = c.Titles(ctx, func(item metadata.ServerItem) error {
+	e = c.InventoryWithTitles(ctx, func(item metadata.ServerItem) error {
 		found := false
 		for _, remote := range item.Paths {
 			source, relative, ok := metadata.MapPath(remote, c.Mappings)
@@ -235,6 +235,15 @@ func (s *Service) ImportConnection(ctx context.Context, id string) (result Repor
 		}
 		s.setReport(r)
 		return nil
+	}, func(item metadata.InventoryItem) error {
+		if item.Technical == nil {
+			return nil
+		}
+		source, relative, ok := metadata.MapPath(item.Path, c.Mappings)
+		if !ok {
+			return nil
+		}
+		return s.Store.AttachTechnicalProfile(ctx, source, c.ServerID, relative, item.Technical)
 	})
 	if e == nil {
 		e = s.Store.ReconcileIdentities(ctx)

@@ -306,10 +306,18 @@ test('dismissed copies persist and reappear when restored or revised', async ({
     .click();
   await title.click();
   await expect(dialog.getByText('3840 × 2160', { exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(title).toBeFocused();
+  await title.click();
   await page
     .getByRole('button', { name: 'Hide copy', exact: true })
     .first()
     .click();
+  await expect(dialog).toBeHidden();
+  await expect(
+    page.getByRole('button', { name: 'Show hidden (1)', exact: true }),
+  ).toBeFocused();
   await page.reload();
   await expect(
     page.getByText('No file differences to show.', { exact: true }),

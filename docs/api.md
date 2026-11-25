@@ -1,7 +1,9 @@
 # API
 
 TOML deployments report `read_only: true` from `GET /api/v1/status` and
-reject API methods other than GET and HEAD with `405 read_only`.
+reject API methods other than GET and HEAD with `405 read_only`. The optional
+`allow_tracking_edits` setting enables Watchlist and release follow actions.
+Inspect `tracking_read_only` to determine whether these actions are available.
 Configured server records include `type` (`jellyfin`, `plex`, `sftp`, or `ssh`).
 The write endpoints below are available in legacy deployments.
 
@@ -21,8 +23,11 @@ work returns 202; a busy/disabled worker returns 409. Errors have the form
 | `/api/v1/titles/{id}` | GET, HEAD | Title metadata and observed files. |
 | `/api/v1/servers` | GET, HEAD | `{items:[{id,name,scan_hours,stale_hours,status,last_success}]}`. |
 | `/api/v1/servers/{id}` | POST | `{name,scan_hours,stale_hours}`; editable display name and inventory timing. |
-| `/api/v1/wanted` | GET, HEAD | `{items}` with aggregate status and per-server matching content. |
-| `/api/v1/wanted` | POST | `{name,category,year?,provider_ids?,season?,episode?}`; category movie/series; quiet baseline. |
+| `/api/v1/wanted` | GET, HEAD | `{items}` with stored tracking settings, episode schedule, per-server evidence and optional same-origin `artwork_url`. |
+| `/api/v1/wanted` | POST | Save a confirmed title and establish a quiet baseline. |
+| `/api/v1/wanted/preview` | POST | Submit `{input}` with optional identity or scope fields. Returns `{draft,candidates,existing_id}`. The draft can include `artwork_url`. |
+| `/api/v1/wanted/artwork/{provider}/{id}` | GET, HEAD | Image from `tvmaze` or `youtube` when public metadata is enabled. Supports ETags. |
+| `/api/v1/wanted/{id}/settings` | POST | Update a tracked title with the same fields accepted by the create endpoint. |
 | `/api/v1/wanted/{id}/remove` | POST | Remove request and its pending arrivals; `{}`. |
 | `/api/v1/titles/{id}/identity` | POST | `{target_id}`; merge into compatible title, or empty target to split. |
 | `/api/v1/sources` | GET, HEAD | Configured sources and scan health. |
@@ -89,5 +94,11 @@ files have `server_id`, `server_name`, `source_id`, `adapter`, optional `reporte
 Old source-title links resolve to their current canonical title. Identity projection
 never deletes original inventory evidence. Availability states are `available`,
 `missing`, `uncertain`; server health additionally uses ready/scanning/stale/error/pending.
-Wanted POST accepts only movie/series categories; an episode requires a season and
-only episodic requests accept season/episode. Provider IDs use imdb/tmdb/tvdb/tvmaze/anidb.
+Tracking writes accept `{name,category,year?,provider_ids?,local_title_id?,source_url?,
+season?,episode?,alert_mode?,air_alerts?,expected_episodes?,server_id?,paused?}`. Categories are
+`movie` and `series`. An episode requires a season. Library alert modes are
+`episode` (the default), `season`, and `none`. Use `expected_episodes` for a
+manually confirmed, positive numbered season. Use `server_id` to limit tracking
+to the selected library server and skip public release tracking. Use `paused`
+to stop alerts while keeping the title and its settings. Resuming baselines
+the files already present. Provider IDs use imdb/tmdb/tvdb/tvmaze/anidb.

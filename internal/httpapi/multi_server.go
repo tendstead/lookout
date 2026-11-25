@@ -71,6 +71,9 @@ func (o apiOptions) serveMultiServer(w http.ResponseWriter, r *http.Request) boo
 			if e != nil {
 				apiError(w, 503, "wanted_unavailable", "Wanted unavailable")
 			} else {
+				for i := range v {
+					o.populateWantedArtwork(&v[i])
+				}
 				jsonResponse(w, 200, map[string]any{"items": v})
 			}
 			return true
@@ -86,6 +89,10 @@ func (o apiOptions) serveMultiServer(w http.ResponseWriter, r *http.Request) boo
 		if e != nil {
 			apiError(w, 400, "invalid_wanted", "Check the title, category and target")
 		} else {
+			if o.releases != nil && v.Category == "series" && v.ServerID == "" && !v.Paused {
+				_ = o.releases.Queue()
+			}
+			o.populateWantedArtwork(&v)
 			jsonResponse(w, 201, v)
 		}
 		return true

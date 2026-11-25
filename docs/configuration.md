@@ -39,7 +39,9 @@ Restart Lookout after editing the file. Removing a server or root stops its scan
 docker compose -f compose.toml.yaml restart app
 ```
 
-The Servers page shows each server's configured type, status, scan interval and last successful scan. Connections shows media API and Telegram health. In TOML mode, the web UI and its API are read-only. Wanted entries and follows already in the database remain visible, and scans and notifications run in the background.
+The Servers page shows each server's configured type, status, scan interval and last successful scan. Open **Settings** for media API and Telegram connections, followed by service and database health. In TOML mode, the web UI and API are read-only by default. Set the optional top-level `allow_tracking_edits = true` to manage Watchlist entries and release follows from the web UI. Set `allow_public_metadata = true` to enable public schedules and link previews. The Tracking migration starts the Watchlist empty and retains existing release follows.
+
+Public YouTube previews can use oEmbed. An administrator can set `LOOKOUT_YTDLP_PATH` to an executable inside the Lookout runtime for optional metadata-only extraction with yt-dlp. Configure the executable to run with public-only egress and no private network or credential access. The standard Lookout image uses oEmbed unless an external inspector is configured.
 
 ## Move an existing deployment
 

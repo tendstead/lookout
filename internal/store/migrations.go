@@ -23,3 +23,12 @@ var serverSchema string
 
 //go:embed migrations/007_wanted.sql
 var wantedSchema string
+
+//go:embed migrations/008_wanted_tracking.sql
+var wantedTrackingSchema string
+
+//go:embed migrations/009_wanted_schedule.sql
+var wantedScheduleSchema string
+
+//go:embed migrations/010_wanted_scope.sql
+var wantedScopeSchema string

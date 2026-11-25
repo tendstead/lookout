@@ -54,7 +54,21 @@ func (s *Store) SeasonGaps(ctx context.Context, q TitleQuery, kind string, now t
 	defer tx.Rollback(ctx)
 	filter := ` t.canonical_id IS NULL AND t.category IN('series','anime_series') AND ($1='' OR t.name ILIKE '%'||$1||'%' OR t.group_key ILIKE '%'||$1||'%') AND ($2='' OR t.category=$2)`
 	args := []any{q.Search, q.Category, q.ServerID}
-	rows, e := tx.Query(ctx, `SELECT t.id::text,t.name,t.category,t.match_status='review',COALESCE(f.initialized AND f.provider_id=COALESCE(t.provider_ids->>'tvmaze','') AND f.provider_id<>'',false),COALESCE((SELECT bool_and(xs.status IN('ready','scanning') AND xs.last_success IS NOT NULL AND xs.last_success>$4::timestamptz-make_interval(hours=>v.stale_hours)) FROM library_sources xs JOIN library_servers v ON v.id=xs.server_id WHERE xs.category IN('series','anime_series') AND ($3='' OR xs.server_id=$3)),false),f.checked_at,(SELECT min(xs.last_success) FROM library_sources xs WHERE xs.category IN('series','anime_series') AND ($3='' OR xs.server_id=$3)) FROM library_titles t JOIN library_sources s ON s.id=t.source_id LEFT JOIN release_follows f ON f.title_id=t.id WHERE `+filter, append(args, now)...)
+	const nativeReady = `COALESCE(f.initialized AND f.provider_id=t.provider_ids->>'tvmaze' AND f.provider_id<>'',false)`
+	const nativePreferred = `(` + nativeReady + ` AND (ws.checked_at IS NULL OR f.checked_at>=ws.checked_at))`
+	const scheduleJoins = `
+        LEFT JOIN release_follows f ON f.title_id=t.id
+        LEFT JOIN wanted_schedules ws ON ws.show_id=t.provider_ids->>'tvmaze'`
+	rows, e := tx.Query(ctx, `SELECT t.id::text,t.name,t.category,t.match_status='review',
+        (`+nativeReady+` OR ws.checked_at IS NOT NULL),
+        COALESCE((SELECT bool_and(xs.status IN('ready','scanning') AND xs.last_success IS NOT NULL
+            AND xs.last_success>$4::timestamptz-make_interval(hours=>v.stale_hours))
+            FROM library_sources xs JOIN library_servers v ON v.id=xs.server_id
+            WHERE xs.category IN('series','anime_series') AND ($3='' OR xs.server_id=$3)),false),
+        CASE WHEN `+nativePreferred+` THEN f.checked_at ELSE ws.checked_at END,
+        (SELECT min(xs.last_success) FROM library_sources xs
+            WHERE xs.category IN('series','anime_series') AND ($3='' OR xs.server_id=$3))
+        FROM library_titles t `+scheduleJoins+` WHERE `+filter, append(args, now)...)
 	if e != nil {
 		return out, e
 	}
@@ -95,7 +109,16 @@ func (s *Store) SeasonGaps(ctx context.Context, q TitleQuery, kind string, now t
 		return out, e
 	}
 	// scheduled_at already applies the shared conservative date-only policy.
-	rows, e = tx.Query(ctx, `SELECT p.title_id::text,p.season,p.number,p.scheduled_at FROM provider_episodes p JOIN library_titles t ON t.id=p.title_id WHERE `+filter+` AND ($3='' OR EXISTS(SELECT 1 FROM library_sources scope WHERE scope.server_id=$3 AND scope.category IN('series','anime_series'))) AND p.active AND p.show_id=COALESCE(t.provider_ids->>'tvmaze','') AND p.scheduled_at<=$4 AND p.season>0 AND p.number>0`, append(args, now)...)
+	rows, e = tx.Query(ctx, `SELECT t.id::text,p.season,p.number,p.scheduled_at FROM library_titles t`+scheduleJoins+`
+        JOIN LATERAL (
+            SELECT native.season,native.number,native.scheduled_at FROM provider_episodes native
+            WHERE `+nativePreferred+` AND native.title_id=t.id AND native.show_id=f.provider_id AND native.active
+            UNION ALL
+            SELECT tracked.season,tracked.number,tracked.scheduled_at FROM wanted_provider_episodes tracked
+            WHERE NOT `+nativePreferred+` AND ws.checked_at IS NOT NULL AND tracked.show_id=ws.show_id
+        ) p ON true WHERE `+filter+`
+        AND ($3='' OR EXISTS(SELECT 1 FROM library_sources scope WHERE scope.server_id=$3 AND scope.category IN('series','anime_series')))
+        AND p.scheduled_at<=$4 AND p.season>0 AND p.number>0`, append(args, now)...)
 	if e != nil {
 		return out, e
 	}

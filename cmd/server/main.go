@@ -15,6 +15,7 @@ import (
 	"github.com/tendstead/lookout/internal/config"
 	"github.com/tendstead/lookout/internal/enrichment"
 	"github.com/tendstead/lookout/internal/httpapi"
+	"github.com/tendstead/lookout/internal/metadata"
 	"github.com/tendstead/lookout/internal/notify"
 	"github.com/tendstead/lookout/internal/store"
 	"github.com/tendstead/lookout/internal/tracking"
@@ -105,6 +106,9 @@ func run(file string) error {
 	}
 	metadataService := enrichment.New(s, key)
 	metadataService.AllowPublic = settings.public
+	if executable := os.Getenv("LOOKOUT_YTDLP_PATH"); executable != "" {
+		metadataService.TV.TrackingMedia = metadata.NewYTDLPInspector(executable)
+	}
 	var sourceIDs []string
 	if file != "" {
 		sourceIDs, err = metadataService.ConfigureConnections(startup, settings.connections)
@@ -129,6 +133,7 @@ func run(file string) error {
 		httpapi.WithMultiServer(s),
 		httpapi.WithMetadata(metadataService),
 		httpapi.WithReleaseTracking(releaseService, telegramService),
+		httpapi.WithWantedTracking(s, metadataService.TV, settings.public, settings.trackingEdits),
 	}
 	if file != "" {
 		options = append(options, httpapi.WithReadOnly(), httpapi.WithConfiguredSources(types, sourceIDs))

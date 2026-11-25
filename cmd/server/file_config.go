@@ -23,14 +23,15 @@ import (
 const defaultConfigFile = "/run/lookout/lookout.toml"
 
 type fileSettings struct {
-	database    config.Config
-	catalogue   catalogue.Config
-	servers     map[string]store.Server
-	connections []metadata.MediaServer
-	telegram    *notify.Config
-	deliver     bool
-	public      bool
-	follow      bool
+	database      config.Config
+	catalogue     catalogue.Config
+	servers       map[string]store.Server
+	connections   []metadata.MediaServer
+	telegram      *notify.Config
+	deliver       bool
+	public        bool
+	follow        bool
+	trackingEdits bool
 }
 
 type mediaSettings struct {
@@ -76,8 +77,9 @@ func loadFileConfig(file string) (fileSettings, error) {
 			Chat    string `toml:"chat_id"`
 			Enabled bool   `toml:"delivery_enabled"`
 		} `toml:"telegram"`
-		Public bool `toml:"allow_public_metadata"`
-		Follow bool `toml:"follow_imported_series"`
+		Public        bool `toml:"allow_public_metadata"`
+		Follow        bool `toml:"follow_imported_series"`
+		TrackingEdits bool `toml:"allow_tracking_edits"`
 	}
 	decoded, err := toml.DecodeFile(file, &raw)
 	if err != nil {
@@ -115,7 +117,7 @@ func loadFileConfig(file string) (fileSettings, error) {
 		database.User = url.UserPassword(database.User.Username(), raw.Database.Password)
 		settings.database.DatabaseURL = database.String()
 	}
-	settings.public, settings.follow = raw.Public, raw.Follow
+	settings.public, settings.follow, settings.trackingEdits = raw.Public, raw.Follow, raw.TrackingEdits
 	if raw.Telegram != nil {
 		settings.telegram, err = notify.NewConfig(raw.Telegram.Token, raw.Telegram.Chat)
 		if err != nil {

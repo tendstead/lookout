@@ -1179,6 +1179,68 @@
         }
       }
     },
+    "/api/v1/wanted/preview": {
+      "post": {
+        "summary": "Resolve a title or public link and preview library evidence",
+        "responses": {
+          "200": {
+            "description": "Successful operation; see docs/api.md for JSON contract"
+          }
+        }
+      }
+    },
+    "/api/v1/wanted/artwork/{provider}/{id}": {
+      "parameters": [
+        {
+          "name": "provider",
+          "in": "path",
+          "required": true,
+          "schema": {"type": "string", "enum": ["tvmaze", "youtube"]}
+        },
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {"type": "string"}
+        }
+      ],
+      "get": {
+        "summary": "Retrieve a supported public tracking image",
+        "responses": {
+          "200": {"description": "Image bytes"},
+          "304": {"description": "Image has not changed"},
+          "404": {"description": "Image unavailable"}
+        }
+      },
+      "head": {
+        "summary": "Read public tracking image headers",
+        "responses": {
+          "200": {"description": "Image headers"},
+          "304": {"description": "Image has not changed"},
+          "404": {"description": "Image unavailable"}
+        }
+      }
+    },
+    "/api/v1/wanted/{id}/settings": {
+      "post": {
+        "summary": "Update tracking scope and notifications",
+        "responses": {
+          "200": {
+            "description": "Successful operation; see docs/api.md for JSON contract"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "/api/v1/wanted/{id}/remove": {
       "post": {
         "summary": "Remove Wanted target and its arrivals",

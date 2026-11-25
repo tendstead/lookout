@@ -27,7 +27,7 @@
       /* Catalogue detail remains visible during a follow-settings failure. */
     }
   }
-  async function toggle() {
+  async function unfollow() {
     busy = true;
     failed = false;
     try {
@@ -36,7 +36,7 @@
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enabled: !enabled }),
+          body: JSON.stringify({ enabled: false }),
           signal: AbortSignal.timeout(8000),
         },
       );
@@ -53,19 +53,31 @@
   });
 </script>
 
-{#if ready && (enabled || !readOnly)}<section class="follow-controls">
-    {#if !readOnly}<button
+{#if !readOnly || (ready && enabled)}
+  <section class="follow-controls">
+    {#if !readOnly}
+      <a
         class="catalogue-button"
-        aria-pressed={enabled}
-        disabled={busy}
-        onclick={() => void toggle()}
-        >{enabled ? t('unfollowReleases') : t('followReleases')}</button
-      >{/if}
-    <p class="metadata-note">
-      {enabled
-        ? t('followingReleases')
-        : t('baselineNote')}{#if enabled && !initialized}
-        · {t('followPending')}{/if}
-    </p>
+        href={'/wanted?title=' + encodeURIComponent(titleID) + '&air=1'}
+      >
+        {enabled ? t('trackingEdit') : t('followReleases')}
+      </a>
+      {#if enabled}
+        <button
+          class="text-button"
+          disabled={busy}
+          onclick={() => void unfollow()}
+        >
+          {t('unfollowReleases')}
+        </button>
+      {/if}
+    {/if}
+    {#if enabled}
+      <p class="metadata-note">
+        {t('followingReleases')}{#if !initialized}
+          · {t('followPending')}{/if}
+      </p>
+    {/if}
     {#if failed}<p role="alert">{t('followError')}</p>{/if}
-  </section>{/if}
+  </section>
+{/if}

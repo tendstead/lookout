@@ -105,7 +105,7 @@ ordinary video files and ZIP media members, not just physical files.
 
 ## Jellyfin / Plex
 
-Use Connections to choose either server, save its URL/token, verify it and import
+Use **Settings → Connections** to choose either server, save its URL/token, verify it and import
 metadata. These adapters use read-only HTTP GET requests; they do not change the
 server library. Tokens are encrypted in Lookout's database and never returned by
 its API. Browser artwork requests go through Lookout's bounded authenticated proxy.
@@ -120,7 +120,7 @@ a private `{"kind":"jellyfin","url":"http://server:8096","token":"..."}` file,
 `-mappings` pointing to a JSON array of path mappings, and `-key` pointing to the
 same connection encryption key. It uses the database environment settings; add
 `-official` only with consent for TVmaze lookups. Mounting a JSON credential file
-alone does not import it; use the CLI or the Connections form.
+alone does not import it; use the CLI or the **Settings → Connections** form.
 The host and container must both resolve/reach your chosen URL; a LAN address can
 be used when a local reverse-proxy hostname is unavailable inside Docker.
 
@@ -128,7 +128,7 @@ be used when a local reverse-proxy hostname is unavailable inside Docker.
 
 Set `ALLOW_PUBLIC_METADATA=true` only when you want Lookout to send series/anime
 titles and TVDB/IMDb identifiers to TVmaze. This shares names/IDs, not credentials
-or media. Connections can refresh official metadata; title detail supports searching
+or media. **Settings → Connections** can refresh official metadata; title detail supports searching
 and selecting a manual match. TVmaze attribution links are retained.
 Movies currently use local/Jellyfin/Plex metadata; TVmaze covers episodic titles.
 
@@ -287,26 +287,34 @@ source, not inferred from another adapter’s successful request. Stale, failed 
 unconfirmed evidence is uncertain, never proof of absence. Servers without relevant
 configured categories do not block an unrelated movie/series Wanted result.
 
-## Wanted
+## Tracking
 
-Use **Wanted** to add a movie or series, optional year, and optional season/episode.
-You can also add a library title from its detail page, retaining provider IDs.
-Manual entry and matching use your stored catalogue; no external search is required.
-Exact provider IDs are preferred; a unique title/year can match without IDs.
-Ambiguous identities/numbering require checking instead of a definite missing claim.
+**Watchlist** accepts a title or public HTTPS link. Select a library suggestion
+to reuse its identity, or preview a link and confirm the title and episode scope
+before saving. Try `Severance season 1` or `Severance S01E09` to preselect a
+scope. The season and episode fields suggest known names and availability
+and accept numbers you enter manually. A tracked title can exist without a library match. With public
+metadata enabled, TVmaze provides schedules and resolves TVmaze and supported
+TheTVDB links. Individual YouTube videos can fill in a title. Other URLs can
+be saved with a manually entered title.
 
-A whole-series request means any episode; a season request means any numbered
-episode in that season; an episode request requires its explicit season/number.
-“Available” for a season is not a claim of completeness—use Missing seasons for
-comparison against expected aired episodes. Wanted shows server names and matched
-content. At least one fresh available copy establishes availability; otherwise any
-relevant stale/failed source makes absence uncertain.
+Watchlist cards reuse the Overview artwork and server tags. A server tag limits
+tracking to that server's files. You can select a server before searching or
+change it in a title's tracking settings. The stop icon pauses tracking while
+keeping the title and its settings. Trash removes it from the Watchlist.
 
-Adding a request establishes a quiet baseline for already observed copies. Later
-arrivals are durable and deduplicated by request, server and content. The first scan
-of a newly connected server may announce an existing Wanted request. Multiple new
-episodes are batched per request/server. Notifications include **Added on <server
-name>** and episode numbers where known. Renaming a server is not an arrival.
-Delivery uses the existing Telegram switch and retry handling; events observed
-while delivery is paused are retained as held, without historical replay. Telegram
-can still duplicate a message if it accepts it but the network loses its response.
+**Releases** shows upcoming and aired episodes alongside their observed library
+availability. The Watchlist preview lists the expected episodes and the servers
+that have each copy. A successful, fresh scan can confirm availability. Stale,
+ambiguous or failed evidence leaves availability uncertain.
+
+Adding a title establishes a baseline for copies already observed. Choose
+Telegram alerts when an episode airs, when new episodes arrive on your servers,
+or once a finished season is available in full. Series episode arrivals are
+deduplicated across servers. A full-season alert can count copies from multiple
+servers. If the provider lacks a complete season schedule, a manual final
+episode count can be used for a specific finished season.
+
+Delivery uses the existing Telegram switch and retry handling. Events observed
+while delivery is paused are retained as held. Telegram can still duplicate a
+message if it accepts it but the network loses its response.

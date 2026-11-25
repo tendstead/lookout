@@ -3,6 +3,7 @@
 # Optional settings. The defaults are false.
 # allow_public_metadata = false
 # follow_imported_series = false
+# allow_tracking_edits = false
 
 [database]
 url = "postgres://lookout@postgres:5432/lookout"

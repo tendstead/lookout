@@ -7,6 +7,7 @@
   import LibrarySearch from './LibrarySearch.svelte';
   import ServerFilter from './ServerFilter.svelte';
   import ServerBadges from './ServerBadges.svelte';
+  import TitleCard from './TitleCard.svelte';
   import { api, type Availability } from './server-types';
   type Title = {
     servers?: Availability[];
@@ -53,10 +54,12 @@
     locale,
     mode = 'overview',
     readOnly,
+    trackingReadOnly,
     titleID = '',
   }: {
     locale: Locale;
     readOnly: boolean;
+    trackingReadOnly: boolean;
     mode?: 'overview' | 'sources' | 'detail';
     titleID?: string;
   } = $props();
@@ -143,20 +146,6 @@
       if (current === version) error = 'libraryError';
     } finally {
       if (current === version) loading = false;
-    }
-  }
-  async function wanted() {
-    if (!detail) return;
-    try {
-      await api('/api/v1/wanted', {
-        name: detail.name,
-        category: detail.category.includes('series') ? 'series' : 'movie',
-        year: detail.year,
-        provider_ids: detail.provider_ids,
-      });
-      notice = 'wantedSaved';
-    } catch {
-      error = 'libraryError';
     }
   }
   async function identity(id: string, target: string) {
@@ -279,7 +268,7 @@
         </p>{/if}{#if detail.category === 'series' || detail.category === 'anime_series'}<Follow
           {locale}
           titleID={detail.id}
-          {readOnly}
+          readOnly={trackingReadOnly}
         />{#if !readOnly}<MetadataReview
             {locale}
             titleID={detail.id}
@@ -307,10 +296,14 @@
             </p>
           </article>{/each}
       </div>
-      {#if !readOnly}<button
+      {#if !trackingReadOnly && !detail.category.includes('series')}
+        <a
           class="catalogue-button"
-          onclick={() => void wanted()}>{t('addWanted')}</button
+          href={'/wanted?title=' + encodeURIComponent(detail.id)}
+          >{t('trackingSubmit')}</a
         >
+      {/if}
+      {#if !readOnly}
         <details class="source-card">
           <summary>{t('identityReview')}</summary>
           <p>{t('identityHint')}</p>
@@ -407,37 +400,32 @@
       {t('loadingLibrary')}
     </p>{/if}
   <div class="title-grid">
-    {#each titles as title}<a class="title-card" href={'/titles/' + title.id}
-        ><div class="title-art" aria-hidden="true">
-          {#if title.has_artwork}<img
-              src={'/api/v1/titles/' + title.id + '/artwork'}
-              alt=""
-              loading="lazy"
-              onerror={(e) =>
-                ((e.currentTarget as HTMLImageElement).style.display = 'none')}
-            />{/if}
-          <Icon
-            kind={title.category.includes('series') ? 'system' : 'library'}
-            size={34}
-          /><span>{categoryLabel(title.category)}</span>
-        </div>
-        <div class="title-card-text">
-          <h3>{title.name}</h3>
-          <ServerBadges servers={title.servers} {locale} />
-          <p>
-            {title.year ? title.year + ' · ' : ''}{title.file_count}
-            {t('files')}
-          </p>
-          <small
-            >{#if title.match_status === 'review'}<strong
-                >{t('needsReview')}</strong
-              > ·
-            {/if}{title.provenance === 'filename'
-              ? t('unknownMetadata')
-              : title.provenance}</small
-          >
-        </div></a
-      >{/each}
+    {#each titles as title (title.id)}
+      <TitleCard
+        name={title.name}
+        category={title.category}
+        categoryLabel={categoryLabel(title.category)}
+        href={'/titles/' + title.id}
+        artwork={title.has_artwork
+          ? '/api/v1/titles/' + title.id + '/artwork'
+          : undefined}
+      >
+        <ServerBadges servers={title.servers} {locale} />
+        <p>
+          {title.year ? title.year + ' · ' : ''}{title.file_count}
+          {t('files')}
+        </p>
+        <small
+          >{#if title.match_status === 'review'}<strong
+              >{t('needsReview')}</strong
+            > ·
+          {/if}
+          {title.provenance === 'filename'
+            ? t('unknownMetadata')
+            : title.provenance}</small
+        >
+      </TitleCard>
+    {/each}
   </div>
   {#if !loading && !titles.length}<div class="empty-card">
       <h3>{sources.length ? t('noResults') : t('sourceEmpty')}</h3>

@@ -4,7 +4,11 @@
   import { translate, storedLocale, type Locale, type Key } from './lib/i18n';
   import Icon from './lib/Icon.svelte';
   import LibraryIcon from './lib/LibraryIcon.svelte';
-  import SystemIcon from './lib/SystemIcon.svelte';
+  import ServerIcon from './lib/SystemIcon.svelte';
+  import WatchlistIcon from './lib/WatchlistIcon.svelte';
+  import CalendarIcon from './lib/CalendarIcon.svelte';
+  import SourcesIcon from './lib/SourcesIcon.svelte';
+  import SettingsIcon from './lib/SettingsIcon.svelte';
   import Library from './lib/Library.svelte';
   import Connections from './lib/Connections.svelte';
   import Releases from './lib/Releases.svelte';
@@ -14,39 +18,81 @@
   let dark = $state(false);
   let limitWidth = $state(false);
   let pathname = $state(window.location.pathname);
+  // Match the AppShell breakpoint so desktop and mobile expose the same routes.
+  const mobileLayout = window.matchMedia('(max-width: 767px)');
+  let compactNavigation = $state(mobileLayout.matches);
   let checking = $state(true);
   let readOnly = $state(true);
+  let trackingReadOnly = $state(true);
   let service = $state<boolean | null>(null);
   let database = $state<boolean | null>(null);
   let checked = $state<Date | null>(null);
   const t = (key: Key) => translate(locale, key);
   const destinations = $derived<Destination[]>([
     { id: 'overview', label: t('overview'), href: '/', icon: LibraryIcon },
+    ...(compactNavigation
+      ? [
+          {
+            id: 'tracking',
+            label: t('tracking'),
+            href: '/wanted',
+            icon: WatchlistIcon,
+          },
+        ]
+      : [
+          {
+            id: 'watchlist',
+            label: t('watchlist'),
+            href: '/wanted',
+            icon: WatchlistIcon,
+          },
+          {
+            id: 'releases',
+            label: t('releases'),
+            href: '/releases',
+            icon: CalendarIcon,
+          },
+        ]),
+    { id: 'servers', label: t('servers'), href: '/servers', icon: ServerIcon },
+    { id: 'sources', label: t('sources'), href: '/sources', icon: SourcesIcon },
     {
-      id: 'releases',
-      label: t('releases'),
-      href: '/releases',
-      icon: SystemIcon,
+      id: 'settings',
+      label: t('settings'),
+      href: '/settings',
+      icon: SettingsIcon,
     },
-    { id: 'wanted', label: t('wanted'), href: '/wanted', icon: LibraryIcon },
-    { id: 'servers', label: t('servers'), href: '/servers', icon: SystemIcon },
-    { id: 'sources', label: t('sources'), href: '/sources', icon: SystemIcon },
-    {
-      id: 'connections',
-      label: t('connections'),
-      href: '/connections',
-      icon: SystemIcon,
-    },
-    { id: 'system', label: t('system'), href: '/system', icon: SystemIcon },
   ]);
   const isWanted = $derived(pathname === '/wanted');
   const isServers = $derived(pathname === '/servers');
-  const isSystem = $derived(pathname === '/system');
   const isSources = $derived(pathname === '/sources');
-  const isConnections = $derived(pathname === '/connections');
+  const isSettings = $derived(
+    ['/settings', '/system', '/settings/connections', '/connections'].includes(
+      pathname,
+    ),
+  );
   const isReleases = $derived(pathname === '/releases');
+  const isTracking = $derived(isWanted || isReleases);
   const isDetail = $derived(pathname.startsWith('/titles/'));
   const isGallery = $derived(isReleases || pathname === '/');
+  const pageTitle = $derived(
+    t(
+      isTracking
+        ? compactNavigation
+          ? 'tracking'
+          : isWanted
+            ? 'watchlist'
+            : 'releases'
+        : isSettings
+          ? 'settings'
+          : isServers
+            ? 'servers'
+            : isSources
+              ? 'sources'
+              : isDetail
+                ? 'library'
+                : 'overview',
+    ),
+  );
   function toggleWidth() {
     limitWidth = !limitWidth;
     save('lookout.limitWidth', String(limitWidth));
@@ -69,7 +115,10 @@
   $effect(() => {
     document.documentElement.lang = locale;
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-    document.title = `${isSystem ? t('system') : isConnections ? t('connections') : t('overview')} · Lookout`;
+    document.title = pageTitle + ' · Lookout';
+  });
+  $effect(() => {
+    if (isSettings) void check();
   });
   async function check() {
     checking = true;
@@ -97,7 +146,11 @@
         cache: 'no-store',
         signal: AbortSignal.timeout(4000),
       });
-      if (response.ok) readOnly = (await response.json()).read_only !== false;
+      if (response.ok) {
+        const mode = await response.json();
+        readOnly = mode.read_only !== false;
+        trackingReadOnly = mode.tracking_read_only ?? readOnly;
+      }
     } catch {
       // Keep the UI read-only if the deployment mode is unavailable.
     }
@@ -110,18 +163,34 @@
     } catch {
       /* use defaults */
     }
-    void check();
     void loadMode();
     const pop = () => {
       pathname = window.location.pathname;
     };
+    const updateNavigation = () => {
+      compactNavigation = mobileLayout.matches;
+    };
     window.addEventListener('popstate', pop);
-    return () => window.removeEventListener('popstate', pop);
+    mobileLayout.addEventListener('change', updateNavigation);
+    return () => {
+      window.removeEventListener('popstate', pop);
+      mobileLayout.removeEventListener('change', updateNavigation);
+    };
   });
-  function navigate(event: MouseEvent, destination: Destination) {
+  function navigate(event: MouseEvent, href: string) {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    )
+      return;
     event.preventDefault();
-    history.pushState({}, '', destination.href);
-    pathname = destination.href;
+    if (pathname === href) return;
+    history.pushState({}, '', href);
+    pathname = href;
     window.scrollTo(0, 0);
   }
 </script>
@@ -129,25 +198,15 @@
 <AppShell
   brand="Tendstead"
   appLabel="Lookout"
-  pageTitle={isWanted
-    ? t('wanted')
-    : isServers
-      ? t('servers')
-      : isReleases
-        ? t('releases')
-        : isConnections
-          ? t('connections')
-          : isSystem
-            ? t('system')
-            : isSources
-              ? t('sources')
-              : isDetail
-                ? t('library')
-                : t('overview')}
-  {pathname}
+  {pageTitle}
+  pathname={isTracking && compactNavigation
+    ? '/wanted'
+    : isSettings
+      ? '/settings'
+      : pathname}
   {destinations}
-  mobilePrimaryIds={['overview', 'releases', 'sources']}
-  onNavigate={navigate}
+  mobilePrimaryIds={['overview', 'tracking', 'sources']}
+  onNavigate={(event, destination) => navigate(event, destination.href)}
   {locale}
 >
   {#snippet pageActions()}
@@ -186,100 +245,142 @@
     class:overview-page={pathname === '/'}
     class:width-limited={isGallery && limitWidth}
   >
-    {#if !isSystem}
-      {#if !isWanted && !isServers && !isSources && !isDetail && !isConnections && !isReleases}<section
-          class="intro"
+    {#if isTracking}
+      {#if compactNavigation}<nav
+          class="view-nav"
+          aria-label={t('trackingViews')}
         >
+          <a href="/wanted" aria-current={isWanted ? 'page' : undefined}
+            >{t('watchlist')}</a
+          >
+          <a href="/releases" aria-current={isReleases ? 'page' : undefined}
+            >{t('releases')}</a
+          >
+        </nav>{/if}
+      {#if isWanted}<Wanted
+          {locale}
+          readOnly={trackingReadOnly}
+          showHeading={compactNavigation}
+        />
+      {:else}<Releases
+          {locale}
+          readOnly={trackingReadOnly}
+          showHeading={compactNavigation}
+        />{/if}
+    {:else if isSettings}
+      <Connections {locale} {readOnly} />
+      <section class="settings-system" aria-labelledby="system-title">
+        <section class="catalogue-intro">
+          <h2 id="system-title">{t('system')}</h2>
+          <p>{t('systemIntro')}</p>
+        </section>
+        <section class="status-card" aria-labelledby="status-title">
+          <div class="section-heading">
+            <h3 id="status-title">{t('status')}</h3>
+            <button
+              class="text-button"
+              disabled={checking}
+              onclick={() => void check()}
+              ><Icon kind="refresh" size={16} />{checking
+                ? t('checkingButton')
+                : t('refresh')}</button
+            >
+          </div>
+          <div class="status-grid" aria-live="polite">
+            <div class="status-item">
+              <span>{t('service')}</span><strong
+                class:unavailable={service === false}
+                ><i class:off={service === false}></i>{service === null
+                  ? t('checking')
+                  : service
+                    ? t('available')
+                    : t('unavailable')}</strong
+              >
+            </div>
+            <div class="status-item">
+              <span>{t('database')}</span><strong
+                data-testid="database-status"
+                class:unavailable={database === false}
+                ><i class:off={database === false}></i>{database === null
+                  ? t('checking')
+                  : database
+                    ? t('connected')
+                    : t('unavailable')}</strong
+              >
+            </div>
+          </div>
+          <p class="checked">
+            {t('lastChecked')}: {checked
+              ? new Intl.DateTimeFormat(locale, {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                }).format(checked)
+              : t('notChecked')}
+          </p>
+        </section>
+        <section class="details-card">
+          <h3>{t('architecture')}</h3>
+          <p>{t('architectureText')}</p>
+          <dl>
+            <div>
+              <dt>{t('stage')}</dt>
+              <dd>{t('stageValue')}</dd>
+            </div>
+            <div>
+              <dt>{t('api')}</dt>
+              <dd>
+                <a href="/api/v1/status"
+                  >/api/v1/status <span aria-hidden="true">↗</span></a
+                >
+              </dd>
+            </div>
+          </dl>
+        </section>
+      </section>
+    {:else if isServers}
+      <Servers {locale} {readOnly} />
+    {:else}
+      {#if !isSources && !isDetail}
+        <section class="intro">
           <p class="eyebrow">{t('local')}</p>
           <h2>{t('headline')}</h2>
           <p class="lead">{t('intro')}</p>
-        </section>{/if}
-      {#if isWanted}<Wanted {locale} {readOnly} />{:else if isServers}<Servers
+        </section>
+      {/if}
+      {#key pathname}
+        <Library
           {locale}
           {readOnly}
-        />{:else if isReleases}<Releases
-          {locale}
-          {readOnly}
-        />{:else if isConnections}<Connections
-          {locale}
-          {readOnly}
-        />{:else}{#key pathname}<Library
-            {locale}
-            {readOnly}
-            mode={isSources ? 'sources' : isDetail ? 'detail' : 'overview'}
-            titleID={isDetail ? pathname.slice('/titles/'.length) : ''}
-          />{/key}{/if}
-    {:else}
-      <section class="intro">
-        <p class="eyebrow">Lookout</p>
-        <h2>{t('status')}</h2>
-        <p class="lead">{t('systemIntro')}</p>
-      </section>
-    {/if}
-    <section class="status-card" aria-labelledby="status-title">
-      <div class="section-heading">
-        <h3 id="status-title">{t('status')}</h3>
-        <button
-          class="text-button"
-          disabled={checking}
-          onclick={() => void check()}
-          ><Icon kind="refresh" size={16} />{checking
-            ? t('checkingButton')
-            : t('refresh')}</button
-        >
-      </div>
-      <div class="status-grid" aria-live="polite">
-        <div class="status-item">
-          <span>{t('service')}</span><strong
-            class:unavailable={service === false}
-            ><i class:off={service === false}></i>{service === null
-              ? t('checking')
-              : service
-                ? t('available')
-                : t('unavailable')}</strong
-          >
-        </div>
-        <div class="status-item">
-          <span>{t('database')}</span><strong
-            data-testid="database-status"
-            class:unavailable={database === false}
-            ><i class:off={database === false}></i>{database === null
-              ? t('checking')
-              : database
-                ? t('connected')
-                : t('unavailable')}</strong
-          >
-        </div>
-      </div>
-      <p class="checked">
-        {t('lastChecked')}: {checked
-          ? new Intl.DateTimeFormat(locale, {
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-            }).format(checked)
-          : t('notChecked')}
-      </p>
-    </section>
-    {#if isSystem}
-      <section class="details-card">
-        <h3>{t('architecture')}</h3>
-        <p>{t('architectureText')}</p>
-        <dl>
-          <div>
-            <dt>{t('stage')}</dt>
-            <dd>{t('stageValue')}</dd>
-          </div>
-          <div>
-            <dt>{t('api')}</dt>
-            <dd>
-              <a href="/api/v1/status"
-                >/api/v1/status <span aria-hidden="true">↗</span></a
-              >
-            </dd>
-          </div>
-        </dl>
-      </section>
+          {trackingReadOnly}
+          mode={isSources ? 'sources' : isDetail ? 'detail' : 'overview'}
+          titleID={isDetail ? pathname.slice('/titles/'.length) : ''}
+        />
+      {/key}
     {/if}
   </div>
 </AppShell>
+
+<style>
+  .settings-system {
+    margin-block-start: 32px;
+  }
+  .view-nav {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .view-nav a {
+    color: var(--ts-text);
+    border: 1px solid var(--ts-border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    text-decoration: none;
+  }
+  .view-nav a[aria-current='page'] {
+    background: var(--ts-selection);
+    border-color: var(--ts-primary);
+    color: var(--ts-on-selection);
+  }
+</style>

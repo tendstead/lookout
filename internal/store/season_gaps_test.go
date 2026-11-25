@@ -156,3 +156,32 @@ func TestGroupedSeasonGapsKeepEverySeasonBeforePagination(t *testing.T) {
 		t.Fatalf("flat API changed: %+v %v", flat, e)
 	}
 }
+
+func TestSeasonGapsUseWatchlistScheduleWithoutLegacyFollow(t *testing.T) {
+	s := testStore(t)
+	id := releaseTitle(t, s)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	if _, err := s.pool.Exec(ctx, "UPDATE library_titles SET category='series' WHERE id=$1", id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.pool.Exec(ctx, `UPDATE library_files SET season=1,episodes='{1}',numbering='season_episode' WHERE title_id=$1`, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.pool.Exec(ctx, `UPDATE library_sources SET status='ready',last_success=$1`, now); err != nil {
+		t.Fatal(err)
+	}
+	first, second := 1, 2
+	aired := now.Add(-time.Hour).Format(time.RFC3339)
+	episodes := []metadata.Episode{
+		{ID: "first", Season: 1, Number: &first, AirStamp: aired},
+		{ID: "second", Season: 1, Number: &second, AirStamp: aired},
+	}
+	if err := s.SaveWantedSchedule(ctx, "9", episodes, nil, now); err != nil {
+		t.Fatal(err)
+	}
+	page, err := s.SeasonGaps(ctx, TitleQuery{}, "partial", now)
+	if err != nil || page.Review != 0 || len(page.Items) != 1 || len(page.Items[0].MissingEpisodes) != 1 || page.Items[0].MissingEpisodes[0] != 2 {
+		t.Fatalf("expected episode 2 as a gap from the watchlist schedule: %+v, %v", page, err)
+	}
+}

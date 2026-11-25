@@ -4,6 +4,7 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"github.com/tendstead/lookout/internal/metadata"
 	"github.com/tendstead/lookout/internal/store"
 	"net/http"
 	"net/url"
@@ -19,15 +20,19 @@ type LibraryStore interface {
 }
 type ScanRequester interface{ RequestScan(string) error }
 type apiOptions struct {
-	readOnly    bool
-	serverTypes map[string]string
-	sourceIDs   []string
-	multi       MultiServerStore
-	releases    ReleaseService
-	telegram    TelegramService
-	metadata    MetadataService
-	catalogue   LibraryStore
-	scans       ScanRequester
+	readOnly       bool
+	trackingEdits  bool
+	wantedTracking wantedTrackingStore
+	wantedTV       *metadata.TVmaze
+	wantedPublic   bool
+	serverTypes    map[string]string
+	sourceIDs      []string
+	multi          MultiServerStore
+	releases       ReleaseService
+	telegram       TelegramService
+	metadata       MetadataService
+	catalogue      LibraryStore
+	scans          ScanRequester
 }
 type Option func(*apiOptions)
 

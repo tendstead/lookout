@@ -1,7 +1,11 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
   import { translate, type Locale, type Key } from './i18n';
-  import type { UpcomingEpisode } from './release-types';
+  import {
+    releaseAvailability,
+    releaseTitleHref,
+    type UpcomingEpisode,
+  } from './release-types';
   let { episode, locale }: { episode: UpcomingEpisode; locale: Locale } =
     $props();
   const t = (key: Key) => translate(locale, key);
@@ -59,9 +63,9 @@
   <div class="scheduled-title">
     <a
       class="upcoming-art"
-      href={'/titles/' + episode.title_id}
+      href={releaseTitleHref(episode)}
       aria-label={t('openTitle') + ': ' + episode.title}
-      ><Icon kind="library" size={25} />{#if !failed}<img
+      ><Icon kind="library" size={25} />{#if episode.title_id && !failed}<img
           src={'/api/v1/titles/' + episode.title_id + '/artwork'}
           alt={t('gapSeriesArtwork') + ' ' + episode.title}
           loading="lazy"
@@ -69,7 +73,7 @@
         />{/if}</a
     >
     <div>
-      <a class="release-title" href={'/titles/' + episode.title_id}
+      <a class="release-title" href={releaseTitleHref(episode)}
         >{episode.title}</a
       >
       <p>{episode.name}</p>
@@ -84,6 +88,11 @@
             episode.number
           : t('special')}</small
       >
+      {#if episode.availability}
+        <small class="release-availability"
+          >{t(releaseAvailability(episode.availability))}</small
+        >
+      {/if}
     </div>
   </div>
   <footer>
@@ -182,6 +191,10 @@
   .scheduled-title small {
     font-size: 11px;
     color: var(--ts-muted);
+  }
+  .release-availability {
+    display: block;
+    margin-top: 4px;
   }
   footer {
     display: flex;

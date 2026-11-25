@@ -2,9 +2,17 @@
   import { onMount } from 'svelte';
   import MissingSeasons from './MissingSeasons.svelte';
   import UpcomingReleaseCard from './UpcomingReleaseCard.svelte';
-  import type { UpcomingEpisode } from './release-types';
+  import {
+    releaseAvailability,
+    releaseTitleHref,
+    type UpcomingEpisode,
+  } from './release-types';
   import { translate, type Locale, type Key } from './i18n';
-  let { locale, readOnly }: { locale: Locale; readOnly: boolean } = $props();
+  let {
+    locale,
+    readOnly,
+    showHeading = true,
+  }: { locale: Locale; readOnly: boolean; showHeading?: boolean } = $props();
   const t = (key: Key) => translate(locale, key);
   type Episode = UpcomingEpisode;
   type Event = Omit<Episode, 'scheduled_at'> & {
@@ -99,7 +107,7 @@
 </script>
 
 <section class="catalogue-intro">
-  <h2>{t('releases')}</h2>
+  {#if showHeading}<h2>{t('releases')}</h2>{/if}
   <p>{t('releaseNotice')}</p>
   <p>
     {following}
@@ -143,7 +151,7 @@
         <div>
           <span class="release-kind"
             >{event.kind === 'season' ? t('newSeason') : t('newEpisode')}</span
-          ><a class="release-title" href={'/titles/' + event.title_id}
+          ><a class="release-title" href={releaseTitleHref(event)}
             >{event.title}</a
           >
           <p>{event.name}</p>
@@ -158,6 +166,11 @@
                 event.number
               : t('special')}</small
           >
+          {#if event.availability}
+            <small class="release-availability"
+              >{t(releaseAvailability(event.availability))}</small
+            >
+          {/if}
         </div>
         <div class="release-date">
           <time datetime={event.reported_at}
@@ -198,3 +211,10 @@
     rel="noreferrer">CC BY-SA</a
   >
 </p>
+
+<style>
+  .release-availability {
+    display: block;
+    margin-top: 4px;
+  }
+</style>

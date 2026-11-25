@@ -96,32 +96,36 @@ func (s *Store) SaveEpisodeSnapshot(ctx context.Context, follow Follow, episodes
 }
 
 type UpcomingEpisode struct {
-	TitleID     string    `json:"title_id"`
-	Title       string    `json:"title"`
-	Category    string    `json:"category"`
-	EpisodeID   string    `json:"episode_id"`
-	Name        string    `json:"name"`
-	Season      int       `json:"season"`
-	Number      *int      `json:"number"`
-	AirDate     string    `json:"air_date"`
-	ScheduledAt time.Time `json:"scheduled_at"`
-	Precision   string    `json:"precision"`
-	URL         string    `json:"url"`
+	TitleID      string    `json:"title_id"`
+	TrackedID    string    `json:"tracked_id,omitempty"`
+	Availability string    `json:"availability,omitempty"`
+	Title        string    `json:"title"`
+	Category     string    `json:"category"`
+	EpisodeID    string    `json:"episode_id"`
+	Name         string    `json:"name"`
+	Season       int       `json:"season"`
+	Number       *int      `json:"number"`
+	AirDate      string    `json:"air_date"`
+	ScheduledAt  time.Time `json:"scheduled_at"`
+	Precision    string    `json:"precision"`
+	URL          string    `json:"url"`
 }
 type ReleaseEvent struct {
-	ID         int64     `json:"id"`
-	TitleID    string    `json:"title_id"`
-	Title      string    `json:"title"`
-	Category   string    `json:"category"`
-	EpisodeID  string    `json:"episode_id"`
-	Kind       string    `json:"kind"`
-	Name       string    `json:"name"`
-	Season     int       `json:"season"`
-	Number     *int      `json:"number"`
-	ReportedAt time.Time `json:"reported_at"`
-	Precision  string    `json:"precision"`
-	URL        string    `json:"url"`
-	Delivery   string    `json:"delivery"`
+	ID           int64     `json:"id"`
+	TitleID      string    `json:"title_id"`
+	TrackedID    string    `json:"tracked_id,omitempty"`
+	Availability string    `json:"availability,omitempty"`
+	Title        string    `json:"title"`
+	Category     string    `json:"category"`
+	EpisodeID    string    `json:"episode_id"`
+	Kind         string    `json:"kind"`
+	Name         string    `json:"name"`
+	Season       int       `json:"season"`
+	Number       *int      `json:"number"`
+	ReportedAt   time.Time `json:"reported_at"`
+	Precision    string    `json:"precision"`
+	URL          string    `json:"url"`
+	Delivery     string    `json:"delivery"`
 }
 type ReleaseOverview struct {
 	UnmatchedTitles []Follow          `json:"unmatched_titles"`
@@ -166,48 +170,14 @@ func (s *Store) ReleaseOverview(ctx context.Context, now time.Time, limit, offse
 	if err != nil {
 		return v, err
 	}
-	filter := ` FROM provider_episodes p JOIN release_follows f ON f.title_id=p.title_id AND f.provider_id=p.show_id JOIN library_titles t ON t.id=p.title_id WHERE t.canonical_id IS NULL AND f.enabled AND p.active AND p.scheduled_at>$1`
-	if e = s.pool.QueryRow(ctx, "SELECT count(*)"+filter, now).Scan(&v.UpcomingTotal); e != nil {
+	if e = s.wantedReleaseCounts(ctx, &v); e != nil {
 		return v, e
 	}
-	rows, e := s.pool.Query(ctx, `SELECT t.id::text,t.name,t.category,p.episode_id,p.name,p.season,p.number,p.air_date,p.scheduled_at,p.precision,p.provider_url`+filter+` ORDER BY p.scheduled_at,t.id,p.episode_id LIMIT $2 OFFSET $3`, now, limit, offset)
-	if e != nil {
+	if e = s.readUpcomingReleases(ctx, &v, now); e != nil {
 		return v, e
 	}
-	for rows.Next() {
-		var p UpcomingEpisode
-		if e = rows.Scan(&p.TitleID, &p.Title, &p.Category, &p.EpisodeID, &p.Name, &p.Season, &p.Number, &p.AirDate, &p.ScheduledAt, &p.Precision, &p.URL); e != nil {
-			rows.Close()
-			return v, e
-		}
-		v.Upcoming = append(v.Upcoming, p)
-	}
-	e = rows.Err()
-	rows.Close()
-	if e != nil {
+	if e = s.readRecentReleases(ctx, &v, now); e != nil {
 		return v, e
 	}
-	const recentProjection = `WITH ranked AS (
- SELECT e.*,i.canonical_id,COALESCE(o.status,'held') AS delivery,
- row_number() OVER(PARTITION BY i.canonical_id,e.show_id,e.episode_id,e.kind ORDER BY
- CASE COALESCE(o.status,'held') WHEN 'delivered' THEN 0 WHEN 'sending' THEN 1 WHEN 'pending' THEN 2 WHEN 'retry' THEN 3 WHEN 'held' THEN 4 WHEN 'coalesced' THEN 5 ELSE 6 END,e.created_at DESC,e.id DESC) AS priority
- FROM release_events e JOIN title_identity i ON i.id=e.title_id LEFT JOIN notification_outbox o ON o.event_id=e.id
- ) `
-	if e = s.pool.QueryRow(ctx, recentProjection+`SELECT count(*) FROM ranked WHERE priority=1`).Scan(&v.RecentTotal); e != nil {
-		return v, e
-	}
-	rows, e = s.pool.Query(ctx, recentProjection+`SELECT e.id,e.canonical_id::text,t.name,t.category,e.episode_id,e.kind,e.episode_name,e.season,e.number,e.reported_at,e.precision,e.provider_url,
- CASE WHEN EXISTS(SELECT 1 FROM release_delivery_receipts sent WHERE sent.show_id=e.show_id AND sent.episode_id=e.episode_id AND sent.kind=e.kind) THEN 'delivered' ELSE e.delivery END FROM ranked e JOIN library_titles t ON t.id=e.canonical_id WHERE e.priority=1 ORDER BY e.created_at DESC,e.id DESC LIMIT $1 OFFSET $2`, limit, offset)
-	if e != nil {
-		return v, e
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var event ReleaseEvent
-		if e = rows.Scan(&event.ID, &event.TitleID, &event.Title, &event.Category, &event.EpisodeID, &event.Kind, &event.Name, &event.Season, &event.Number, &event.ReportedAt, &event.Precision, &event.URL, &event.Delivery); e != nil {
-			return v, e
-		}
-		v.Recent = append(v.Recent, event)
-	}
-	return v, rows.Err()
+	return v, s.setReleaseAvailability(ctx, &v)
 }

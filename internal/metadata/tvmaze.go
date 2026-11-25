@@ -15,11 +15,12 @@ import (
 )
 
 type TVmaze struct {
-	BaseURL  string
-	HTTP     *http.Client
-	Interval time.Duration
-	mu       sync.Mutex
-	next     time.Time
+	BaseURL       string
+	HTTP          *http.Client
+	Interval      time.Duration
+	TrackingMedia func(context.Context, string) (Candidate, error)
+	mu            sync.Mutex
+	next          time.Time
 }
 
 func NewTVmaze() *TVmaze {

@@ -27,18 +27,38 @@ func (p *MediaServer) Image(ctx context.Context, relative string) ([]byte, strin
 	return fetchImage(ctx, p.client(), p.BaseURL+u.String(), p.headers())
 }
 func PublicImage(ctx context.Context, address string) ([]byte, string, error) {
+	return publicProviderImage(ctx, "tvmaze", address, nil)
+}
+
+func publicProviderImage(ctx context.Context, provider, address string, transport http.RoundTripper) ([]byte, string, error) {
 	u, e := url.Parse(address)
-	if e != nil || u.Scheme != "https" || u.Host != "static.tvmaze.com" || !strings.HasPrefix(u.Path, "/uploads/images/") {
+	if e != nil || !validPublicImage(provider, u) {
 		return nil, "", errors.New("unsupported official artwork host")
 	}
-	c := &http.Client{Timeout: 10 * time.Second, CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if req.URL.Host != "static.tvmaze.com" || req.URL.Scheme != "https" || len(via) > 2 {
+	c := &http.Client{Timeout: 10 * time.Second, Transport: transport, CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		if !validPublicImage(provider, req.URL) || len(via) > 2 {
 			return errors.New("artwork redirect rejected")
 		}
 		return nil
 	}}
 	return fetchImage(ctx, c, address, nil)
 }
+
+func validPublicImage(provider string, u *url.URL) bool {
+	if u.Scheme != "https" || u.User != nil || u.RawQuery != "" || path.Clean(u.Path) != u.Path {
+		return false
+	}
+	switch provider {
+	case "tvmaze":
+		return u.Host == "static.tvmaze.com" && strings.HasPrefix(u.Path, "/uploads/images/")
+	case "youtube":
+		parts := strings.Split(u.Path, "/")
+		return u.Host == "i.ytimg.com" && len(parts) == 4 && parts[1] == "vi" && youtubeVideoID.MatchString(parts[2]) && parts[3] == "hqdefault.jpg"
+	default:
+		return false
+	}
+}
+
 func fetchImage(ctx context.Context, c *http.Client, address string, headers map[string]string) ([]byte, string, error) {
 	r, e := http.NewRequestWithContext(ctx, "GET", address, nil)
 	if e != nil {

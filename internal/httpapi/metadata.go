@@ -3,8 +3,6 @@ package httpapi
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"github.com/tendstead/lookout/internal/enrichment"
@@ -133,19 +131,7 @@ func (o apiOptions) serveMetadata(w http.ResponseWriter, r *http.Request) bool {
 				apiError(w, 404, "artwork_unavailable", "Artwork unavailable")
 				return true
 			}
-			sum := sha256.Sum256(data)
-			etag := `"` + hex.EncodeToString(sum[:]) + `"`
-			w.Header().Set("ETag", etag)
-			w.Header().Set("Cache-Control", "private, no-cache")
-			if r.Header.Get("If-None-Match") == etag {
-				w.WriteHeader(304)
-				return true
-			}
-			w.Header().Set("Content-Type", mime)
-			w.WriteHeader(200)
-			if r.Method != "HEAD" {
-				_, _ = w.Write(data)
-			}
+			writeArtwork(w, r, data, mime, "private, no-cache")
 			return true
 		}
 		if len(parts) == 6 && parts[4] == "metadata" && parts[5] == "search" {

@@ -51,7 +51,7 @@ func NewHandler(checkReady func(context.Context) error, assets fs.FS, options ..
 			serveStatic(w, r, assets)
 			return
 		}
-		if isAPI && opts.readOnly && r.Method != http.MethodGet && r.Method != http.MethodHead {
+		if isAPI && opts.readOnly && r.Method != http.MethodGet && r.Method != http.MethodHead && !(opts.trackingEdits && trackingWritePath(r.URL.Path)) {
 			w.Header().Set("Allow", "GET, HEAD")
 			apiError(w, http.StatusMethodNotAllowed, "read_only", "Lookout is read-only. Manage server settings in lookout.toml.")
 			return
@@ -62,7 +62,7 @@ func NewHandler(checkReady func(context.Context) error, assets fs.FS, options ..
 		if isAPI && opts.serveMetadata(w, r) {
 			return
 		}
-		if isAPI && (opts.serveMultiServer(w, r) || opts.serveCatalogue(w, r)) {
+		if isAPI && (opts.serveWantedTracking(w, r) || opts.serveMultiServer(w, r) || opts.serveCatalogue(w, r)) {
 			return
 		}
 		if isAPI && r.URL.Path != "/api/v1/status" {
@@ -79,7 +79,7 @@ func NewHandler(checkReady func(context.Context) error, assets fs.FS, options ..
 			if opts.catalogue != nil {
 				stage = "catalogue"
 			}
-			jsonResponse(w, 200, map[string]any{"service": "lookout", "stage": stage, "read_only": opts.readOnly})
+			jsonResponse(w, 200, map[string]any{"service": "lookout", "stage": stage, "read_only": opts.readOnly, "tracking_read_only": opts.readOnly && !opts.trackingEdits})
 			return
 		}
 		status := "ok"

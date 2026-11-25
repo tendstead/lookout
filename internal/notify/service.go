@@ -114,7 +114,14 @@ func (s *Service) DeliverOne(ctx context.Context, now time.Time) error {
 	}
 	message += "\nProvider: TVmaze. This does not confirm a local copy."
 	if d.Wanted {
-		message = "Wanted title now available\n" + d.Title + " · " + d.Name + "\nAdded on " + d.ServerName
+		heading := "Wanted title now available"
+		if d.Kind == "wanted-season" {
+			heading = "Wanted season complete"
+		}
+		message = heading + "\n" + d.Title + " · " + d.Name
+		if d.Kind != "wanted-season" && d.ServerName != "" {
+			message += "\nAdded on " + d.ServerName
+		}
 	}
 	send, cancel := context.WithTimeout(ctx, 10*time.Second)
 	e = s.client.Send(send, message)
@@ -128,6 +135,9 @@ func (s *Service) DeliverOne(ctx context.Context, now time.Time) error {
 	defer end()
 	if d.Wanted {
 		return s.store.MarkWantedNotification(save, d.ID, e == nil, retry, now, d.WantedIDs...)
+	}
+	if d.TrackedAir {
+		return s.store.MarkTrackedAirNotification(save, d.ID, e == nil, retry, now)
 	}
 	return s.store.MarkNotification(save, d.ID, e == nil, retry, now)
 }

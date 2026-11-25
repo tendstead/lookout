@@ -7,21 +7,38 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
+	"github.com/tendstead/lookout/internal/metadata"
 	"sort"
 	"strings"
 	"time"
 )
 
 type Wanted struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Category    string            `json:"category"`
-	Year        *int              `json:"year,omitempty"`
-	ProviderIDs map[string]string `json:"provider_ids"`
-	Season      *int              `json:"season,omitempty"`
-	Episode     *int              `json:"episode,omitempty"`
-	Status      string            `json:"status"`
-	Servers     []WantedServer    `json:"servers"`
+	ID               string            `json:"id"`
+	Name             string            `json:"name"`
+	Category         string            `json:"category"`
+	Year             *int              `json:"year,omitempty"`
+	ProviderIDs      map[string]string `json:"provider_ids"`
+	Season           *int              `json:"season,omitempty"`
+	Episode          *int              `json:"episode,omitempty"`
+	Status           string            `json:"status"`
+	Servers          []WantedServer    `json:"servers"`
+	SourceURL        string            `json:"source_url,omitempty"`
+	AlertMode        string            `json:"alert_mode"`
+	AirAlerts        bool              `json:"air_alerts"`
+	LocalTitleID     string            `json:"local_title_id,omitempty"`
+	ExpectedEpisodes *int              `json:"expected_episodes,omitempty"`
+	Episodes         []WantedEpisode   `json:"episodes"`
+	SeasonEndKnown   bool              `json:"season_end_known"`
+	ArtworkURL       string            `json:"artwork_url,omitempty"`
+	ArtworkTitleID   string            `json:"-"`
+	SeasonNames      map[int]string    `json:"season_names,omitempty"`
+	ServerID         string            `json:"server_id,omitempty"`
+	Paused           bool              `json:"paused,omitempty"`
+}
+type WantedEpisode struct {
+	metadata.Episode
+	Servers []string `json:"servers"`
 }
 type WantedServer struct {
 	ServerID string   `json:"server_id"`
@@ -35,6 +52,33 @@ func validateWanted(v *Wanted) error {
 	v.Name = strings.TrimSpace(v.Name)
 	if v.Name == "" || len(v.Name) > 300 || (v.Category != "movie" && v.Category != "series") || (v.Year != nil && (*v.Year < 1800 || *v.Year > 3000)) || (v.Season != nil && (*v.Season < 0 || *v.Season > 1000 || v.Category != "series")) || (v.Episode != nil && (v.Season == nil || *v.Episode < 1 || *v.Episode > 100000)) {
 		return errors.New("invalid wanted target")
+	}
+	if v.AlertMode == "" {
+		v.AlertMode = "episode"
+	}
+	if len(v.ServerID) > 100 {
+		return errors.New("invalid tracking server")
+	}
+	if v.ServerID != "" {
+		v.AirAlerts = false
+	}
+	if v.AlertMode != "none" && v.AlertMode != "episode" && v.AlertMode != "season" ||
+		v.AlertMode == "season" && (v.Category != "series" || v.Episode != nil) ||
+		v.AirAlerts && v.Category != "series" {
+		return errors.New("invalid tracking alerts")
+	}
+	if v.ExpectedEpisodes != nil && (v.Season == nil || *v.Season == 0 || v.Episode != nil || *v.ExpectedEpisodes < 1 || *v.ExpectedEpisodes > 100000) {
+		return errors.New("invalid expected episode count")
+	}
+	if v.SourceURL != "" {
+		parsed, err := metadata.TrackingSourceURL(v.SourceURL)
+		if err != nil || parsed.Scheme != "https" {
+			return errors.New("invalid public source URL")
+		}
+		v.SourceURL = parsed.String()
+	}
+	if len(v.LocalTitleID) > 100 {
+		return errors.New("invalid library identity")
 	}
 	if v.ProviderIDs == nil {
 		v.ProviderIDs = map[string]string{}
@@ -72,7 +116,7 @@ func (s *Store) AddWanted(ctx context.Context, v Wanted) (Wanted, error) {
 	if !locked {
 		return v, errors.New("Wanted is updating; retry shortly")
 	}
-	if e = tx.QueryRow(ctx, `INSERT INTO wanted_entries(name,category,year,provider_ids,season,episode) VALUES($1,$2,$3,$4,$5,$6) RETURNING id::text`, v.Name, v.Category, v.Year, raw, v.Season, v.Episode).Scan(&v.ID); e != nil {
+	if e = tx.QueryRow(ctx, `INSERT INTO wanted_entries(name,category,year,provider_ids,season,episode,source_url,alert_mode,air_alerts,local_title_id,expected_episodes,server_id,paused) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULLIF($12,''),$13) RETURNING id::text`, v.Name, v.Category, v.Year, raw, v.Season, v.Episode, v.SourceURL, v.AlertMode, v.AirAlerts, v.LocalTitleID, v.ExpectedEpisodes, v.ServerID, v.Paused).Scan(&v.ID); e != nil {
 		return v, e
 	}
 	units, e := s.wantedEvidence(ctx, &v, true)
@@ -84,6 +128,12 @@ func (s *Store) AddWanted(ctx context.Context, v Wanted) (Wanted, error) {
 			return v, e
 		}
 	}
+	if e = transferWantedAirAlerts(ctx, tx, v); e != nil {
+		return v, e
+	}
+	if e = s.recordSeasonCompletion(ctx, tx, v, units, "baseline"); e != nil {
+		return v, e
+	}
 	return v, tx.Commit(ctx)
 }
 func (s *Store) DeleteWanted(ctx context.Context, id string) error {
@@ -94,7 +144,7 @@ func (s *Store) DeleteWanted(ctx context.Context, id string) error {
 	return e
 }
 func (s *Store) wantedEntries(ctx context.Context) ([]Wanted, error) {
-	rows, e := s.pool.Query(ctx, `SELECT id::text,name,category,year,provider_ids,season,episode FROM wanted_entries ORDER BY lower(name),id`)
+	rows, e := s.pool.Query(ctx, `SELECT id::text,name,category,year,provider_ids,season,episode,source_url,alert_mode,air_alerts,local_title_id,expected_episodes,COALESCE(server_id,''),paused FROM wanted_entries ORDER BY lower(name),id`)
 	if e != nil {
 		return nil, e
 	}
@@ -103,7 +153,7 @@ func (s *Store) wantedEntries(ctx context.Context) ([]Wanted, error) {
 	for rows.Next() {
 		var v Wanted
 		var raw []byte
-		if e = rows.Scan(&v.ID, &v.Name, &v.Category, &v.Year, &raw, &v.Season, &v.Episode); e != nil {
+		if e = rows.Scan(&v.ID, &v.Name, &v.Category, &v.Year, &raw, &v.Season, &v.Episode, &v.SourceURL, &v.AlertMode, &v.AirAlerts, &v.LocalTitleID, &v.ExpectedEpisodes, &v.ServerID, &v.Paused); e != nil {
 			return nil, e
 		}
 		if e = json.Unmarshal(raw, &v.ProviderIDs); e != nil {
@@ -119,7 +169,7 @@ func (s *Store) ListWanted(ctx context.Context) ([]Wanted, error) {
 		return nil, e
 	}
 	for i := range items {
-		if _, e = s.wantedEvidence(ctx, &items[i]); e != nil {
+		if e = s.PreviewWanted(ctx, &items[i], nil); e != nil {
 			return nil, e
 		}
 	}
@@ -141,8 +191,14 @@ func wantedMatches(w Wanted, t Title) (bool, bool) {
 			shared = true
 		}
 	}
+	if w.LocalTitleID == t.ID && w.LocalTitleID != "" {
+		return true, false
+	}
 	if shared {
 		return t.MatchStatus != "review", t.MatchStatus == "review"
+	}
+	if w.LocalTitleID != "" {
+		return false, false
 	}
 	name := strings.EqualFold(strings.Join(strings.Fields(w.Name), " "), strings.Join(strings.Fields(t.Name), " "))
 	if !name {
@@ -158,12 +214,24 @@ func wantedMatches(w Wanted, t Title) (bool, bool) {
 	return t.MatchStatus != "review", t.MatchStatus == "review"
 }
 func (s *Store) wantedEvidence(ctx context.Context, w *Wanted, baseline ...bool) ([]wantedUnit, error) {
+	w.ArtworkTitleID = ""
+	if w.LocalTitleID != "" {
+		canonical, err := s.CanonicalID(ctx, w.LocalTitleID)
+		if err == nil {
+			w.LocalTitleID = canonical
+		} else if !errors.Is(err, ErrNotFound) {
+			return nil, err
+		}
+	}
 	type scope struct {
 		v     WantedServer
 		ready bool
 	}
 	scopes := map[string]*scope{}
-	rows, e := s.pool.Query(ctx, `SELECT v.id,v.name,bool_and(ls.status='ready' AND ls.last_success IS NOT NULL AND ls.last_success>now()-make_interval(hours=>v.stale_hours)) FROM library_servers v JOIN library_sources ls ON ls.server_id=v.id WHERE ($1='series' AND ls.category IN('series','anime_series')) OR ($1='movie' AND ls.category IN('movie','anime_movie')) GROUP BY v.id ORDER BY v.name`, w.Category)
+	rows, e := s.pool.Query(ctx, `SELECT v.id,v.name,bool_and(ls.status='ready' AND ls.last_success IS NOT NULL AND ls.last_success>now()-make_interval(hours=>v.stale_hours))
+ FROM library_servers v LEFT JOIN library_sources ls ON ls.server_id=v.id AND
+ (($1='series' AND ls.category IN('series','anime_series')) OR ($1='movie' AND ls.category IN('movie','anime_movie')))
+ WHERE $2='' OR v.id=$2 GROUP BY v.id HAVING $2<>'' OR count(ls.id)>0 ORDER BY v.name`, w.Category, w.ServerID)
 	if e != nil {
 		return nil, e
 	}
@@ -181,9 +249,15 @@ func (s *Store) wantedEvidence(ctx context.Context, w *Wanted, baseline ...bool)
 	if e != nil {
 		return nil, e
 	}
+	if w.ServerID != "" && len(scopes) == 0 {
+		return nil, errors.New("unknown tracking server")
+	}
 	// Read all possible local identities; exact IDs can match different filenames.
 	pageTitles := []Title{}
-	rows, e = s.pool.Query(ctx, `SELECT t.id::text,t.name,t.category,t.year,t.provider_ids,t.match_status FROM library_titles t WHERE t.canonical_id IS NULL`)
+	rows, e = s.pool.Query(ctx, `SELECT t.id::text,t.name,t.category,t.year,t.provider_ids,t.match_status
+ FROM library_titles t WHERE t.canonical_id IS NULL AND ($1='' OR EXISTS (
+ SELECT 1 FROM title_identity i JOIN library_titles m ON m.id=i.id JOIN library_sources s ON s.id=m.source_id
+ WHERE i.canonical_id=t.id AND s.server_id=$1)) ORDER BY t.id`, w.ServerID)
 	if e != nil {
 		return nil, e
 	}
@@ -214,9 +288,12 @@ func (s *Store) wantedEvidence(ctx context.Context, w *Wanted, baseline ...bool)
 			matches = append(matches, title)
 		}
 	}
-	if len(w.ProviderIDs) == 0 && len(matches) > 1 {
+	if len(w.ProviderIDs) == 0 && w.LocalTitleID == "" && len(matches) > 1 {
 		ambiguous = true
 		matches = nil
+	}
+	if w.LocalTitleID == "" && len(matches) == 1 {
+		w.LocalTitleID = matches[0].ID
 	}
 	units := []wantedUnit{}
 	seen := map[string]bool{}
@@ -224,6 +301,9 @@ func (s *Store) wantedEvidence(ctx context.Context, w *Wanted, baseline ...bool)
 		d, err := s.GetTitle(ctx, title.ID)
 		if err != nil {
 			return nil, err
+		}
+		if d.HasArtwork && (w.ArtworkTitleID == "" || title.ID == w.LocalTitleID) {
+			w.ArtworkTitleID = title.ID
 		}
 		for _, f := range d.Files {
 			scope := scopes[f.ServerID]
@@ -310,14 +390,36 @@ func (s *Store) RefreshWanted(ctx context.Context, notify bool) error {
 		status = "pending"
 	}
 	for _, v := range items {
+		if v.Paused {
+			continue
+		}
 		units, e := s.wantedEvidence(ctx, &v)
 		if e != nil {
 			return e
 		}
+		arrivalStatus := status
+		if v.AlertMode != "episode" {
+			arrivalStatus = "observed"
+		}
 		for _, u := range units {
-			if _, e = tx.Exec(ctx, `INSERT INTO wanted_arrivals(wanted_id,server_id,content_key,description,status) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`, v.ID, u.server, u.key, u.description, status); e != nil {
+			// A series episode is an arrival only the first time it is seen on
+			// any server. Retain the per-server rows for inventory history.
+			existingStatus := arrivalStatus
+			if v.Category == "series" {
+				var seen bool
+				if e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM wanted_arrivals WHERE wanted_id=$1 AND content_key=$2)`, v.ID, u.key).Scan(&seen); e != nil {
+					return e
+				}
+				if seen {
+					existingStatus = "baseline"
+				}
+			}
+			if _, e = tx.Exec(ctx, `INSERT INTO wanted_arrivals(wanted_id,server_id,content_key,description,status) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`, v.ID, u.server, u.key, u.description, existingStatus); e != nil {
 				return e
 			}
+		}
+		if e = s.recordSeasonCompletion(ctx, tx, v, units, status); e != nil {
+			return e
 		}
 	}
 	return tx.Commit(ctx)
@@ -331,15 +433,18 @@ func (s *Store) ClaimWantedNotification(ctx context.Context, now time.Time) (*De
 	var d Delivery
 	d.Wanted = true
 	d.Kind = "wanted"
-	var wanted, server string
-	e = tx.QueryRow(ctx, `SELECT a.id,w.name,v.name,a.attempts,a.wanted_id::text,a.server_id FROM wanted_arrivals a JOIN wanted_entries w ON w.id=a.wanted_id JOIN library_servers v ON v.id=a.server_id WHERE (a.status IN('pending','retry') OR a.status='sending' AND a.claimed_until<$1) AND a.next_attempt<=$1 ORDER BY a.id FOR UPDATE OF a SKIP LOCKED LIMIT 1`, now).Scan(&d.ID, &d.Title, &d.ServerName, &d.Attempts, &wanted, &server)
+	var wanted, server, key string
+	e = tx.QueryRow(ctx, `SELECT a.id,w.name,v.name,a.attempts,a.wanted_id::text,a.server_id,a.content_key FROM wanted_arrivals a JOIN wanted_entries w ON w.id=a.wanted_id JOIN library_servers v ON v.id=a.server_id WHERE NOT w.paused AND (w.server_id IS NULL OR w.server_id=a.server_id) AND (a.status IN('pending','retry') OR a.status='sending' AND a.claimed_until<$1) AND a.next_attempt<=$1 ORDER BY a.id FOR UPDATE OF a,w SKIP LOCKED LIMIT 1`, now).Scan(&d.ID, &d.Title, &d.ServerName, &d.Attempts, &wanted, &server, &key)
 	if errors.Is(e, pgx.ErrNoRows) {
 		return nil, nil
 	}
 	if e != nil {
 		return nil, e
 	}
-	rows, e := tx.Query(ctx, `SELECT id,description FROM wanted_arrivals WHERE wanted_id::text=$1 AND server_id=$2 AND (status IN('pending','retry') OR status='sending' AND claimed_until<$3) AND next_attempt<=$3 ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 10000`, wanted, server, now)
+	if strings.HasPrefix(key, "complete:") {
+		d.Kind = "wanted-season"
+	}
+	rows, e := tx.Query(ctx, `SELECT id,description FROM wanted_arrivals WHERE wanted_id::text=$1 AND server_id=$2 AND ((content_key LIKE 'complete:%' AND content_key=$4) OR (content_key NOT LIKE 'complete:%' AND $4 NOT LIKE 'complete:%')) AND (status IN('pending','retry') OR status='sending' AND claimed_until<$3) AND next_attempt<=$3 ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 10000`, wanted, server, now, key)
 	if e != nil {
 		return nil, e
 	}
@@ -381,6 +486,6 @@ func (s *Store) MarkWantedNotification(ctx context.Context, id int64, sent bool,
 	if retry < time.Minute {
 		retry = time.Minute
 	}
-	_, e := s.pool.Exec(ctx, `UPDATE wanted_arrivals SET status=CASE WHEN attempts>=8 THEN 'failed' ELSE 'retry' END,next_attempt=$2,claimed_until=NULL,last_error='Telegram delivery failed' WHERE id=ANY($1)`, batch, now.Add(retry))
+	_, e := s.pool.Exec(ctx, `UPDATE wanted_arrivals SET status=CASE WHEN attempts>=8 THEN 'failed' ELSE 'retry' END,next_attempt=$2,claimed_until=NULL,last_error='Telegram delivery failed' WHERE id=ANY($1) AND status='sending'`, batch, now.Add(retry))
 	return e
 }

@@ -18,8 +18,9 @@ releases have their own calendar-style cards. Uncertain numbering stays separate
 for review. The first successful
 schedule fetch establishes a silent baseline. Optional Telegram alerts apply to
 future releases; verifying the bot/chat sends no test message.
-A **Wanted** list tracks movies, series, seasons and episodes across servers.
-Arrival notifications identify the server that added the requested content.
+**Tracking** combines a Watchlist with Releases. Add a film, series, season or
+episode by title or public link, then see its schedule and server availability.
+Choose alerts for airing, arrival on your servers, or a complete season.
 Scans default to six hours, with a configurable 24-hour stale threshold; offline
 or stale inventory stays visible as uncertain rather than being treated as missing.
 

@@ -125,8 +125,47 @@ func (s *Service) Refresh(ctx context.Context, force bool) error {
 		r.Events += count
 		s.setStatus(r)
 	}
-	return nil
+	return s.refreshWantedSchedules(ctx, &r, now, force)
 }
+
+func (s *Service) refreshWantedSchedules(ctx context.Context, status *Status, now time.Time, force bool) error {
+	providers, err := s.Store.DueWantedSchedules(ctx, now, force)
+	if err != nil {
+		return err
+	}
+	for _, provider := range providers {
+		if err = ctx.Err(); err != nil {
+			return err
+		}
+		request, cancel := context.WithTimeout(ctx, 30*time.Second)
+		episodes, lookupErr := s.TV.Episodes(request, provider)
+		if lookupErr != nil {
+			cancel()
+			status.Errors++
+			if err = s.Store.WantedScheduleFailure(ctx, provider, now); err != nil {
+				return err
+			}
+			s.setStatus(*status)
+			continue
+		}
+		seasons, seasonErr := s.TV.Seasons(request, provider)
+		cancel()
+		if seasonErr != nil {
+			status.Errors++
+			seasons = nil // Preserve the last known season data if that endpoint is unavailable.
+		}
+		if err = s.Store.SaveWantedSchedule(ctx, provider, episodes, seasons, time.Now().UTC()); err != nil {
+			return err
+		}
+		status.Checked++
+		s.setStatus(*status)
+	}
+	notify := s.NotifyReady != nil && s.NotifyReady()
+	count, err := s.Store.QueueWantedAirAlerts(ctx, time.Now().UTC(), notify)
+	status.Events += count
+	return err
+}
+
 func (s *Service) Overview(ctx context.Context, limit, offset int) (store.ReleaseOverview, error) {
 	return s.Store.ReleaseOverview(ctx, time.Now().UTC(), limit, offset)
 }

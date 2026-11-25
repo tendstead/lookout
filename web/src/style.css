@@ -851,6 +851,10 @@ dd a {
   padding: 2px 5px;
   overflow-wrap: anywhere;
 }
+[data-theme='dark'] .server-badge {
+  background: var(--ts-selection);
+  color: var(--ts-on-selection);
+}
 .server-badge.uncertain {
   border-style: dashed;
 }
